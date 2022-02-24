@@ -1,7 +1,5 @@
 # nw_setup
 
-![gif](https://github.com/kotabrog/ft_mini_ls/blob/main/image/ft_mini_ls.gif)
-
 ## Overview
 This repository is python package for setup of NetWork simulation using Cognac; MD simulator.
 

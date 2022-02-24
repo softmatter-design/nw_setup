@@ -51,17 +51,18 @@ def makenewudf():
 					N_Subchain: int "各セグメントの側鎖の数", 
 					N_UnitCells: int "一辺あたりのユニットセルの数"
 				} "ネットワークの条件を設定"
-			Multiplisity:{Set_or_Calc:select{"Set", "Calc"} "多重度を設定するかどうかを決める",
-					Set:{Multiplicity: int} "多重度を設定"
-				} "ネットワークの多重度を設定"
-			Shrinkage:{Shrink:select{"Yes", "No"} "ストランドを自然長から圧縮するかどうかを決める"
-				target_density: float
-				} "ストランドを自然長から圧縮するかどうかを決める"
-			Type:{
-				Topology:select{
-					"Entangled",
-					"NO_Entangled"
-					} "ネットワーク・トポロジーを選択",
+			Multiplisity:{Set_or_Calc:select{"Set", "Calc"} "多重度を設定するかどうかのフラッグ",
+					Set:{Multiplicity: int} "多重度を設定",
+					Calc:{TargetDensity:float} "多重度を自動設定した場合の密度を設定 \\n設定した密度になるように多重度を設定"
+				} "多重度設定に関する設定"
+			Shrinkage:{Shrink:select{"Yes", "No"} "ストランドを自然長から圧縮するかどうかのフラッグ \\n非圧縮時には、多重度に応じて密度が変化",
+				Yes:{Control:select{"Density", "Shrink"} "圧縮する場合に、密度コントロールにするか、圧縮率を決めるかを設定", 
+				Density:{target_density: float} "目標とする密度を設定", 
+				Shrinkage:{value: float} "ストランドの圧縮比率を設定"
+				}
+				} "ストランドを自然長から圧縮するかどうかを設定"
+			TopologyType:{
+				Type:select{"Entangled", "NO_Entangled"} "ネットワーク・トポロジーを選択",
 					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入るように初期化",
 					NO_Entangled:{ExpansionRatio: float "NPT 計算での初期膨張率", StepPress[]: float "NPT 計算での圧力変化"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入らないようにNPTで縮める。"
 				} "ネットワーク・トポロジーを選択",
@@ -70,17 +71,18 @@ def makenewudf():
 			Equilib_Condition:{
 					repeat: int "平衡化計算の繰り返し数",
 					Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "平衡化計算の時間条件を入力"
-				} "平衡化計算の時間条件を入力"
+				} "平衡化計算の時間条件を入力",
+			l_bond: float "シミュレーションでのボンドの自然長"
 			} "シミュレーションの条件を設定"
 	\end{def}
 
 	\\begin{data}
 		CalcCond:{"cognac112",1}
 TargetCond:{
-	{"Random_NW",{"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}50}}
+	{"Random_NW", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}50}}
 	{20, 0, 3}
-	{"Set", {1}}
-	{"No", 0.850}
+	{"Set", {1}{0.85}}
+	{"Yes", {"Density", {0.85}{0.5}}}
 	{"Entangled",
 		{[1.0730000,1.0000000,0.9000000,0.8000000]},
 		{2.0000000, [0.2000000,0.5000000,1.0000000,2.0000000,3.0000000,4.5000000]}
@@ -88,6 +90,7 @@ TargetCond:{
 	}
 SimulationCond:{
 	{4,{1.00000000000000e-02,200000,1000}}
+	0.97
 	}
 
 \end{data}
@@ -124,9 +127,7 @@ def read_and_setcondition():
 # Read condition udf
 def readconditionudf():
 	u = UDFManager('calc_condition.udf')
-
 	u.jump(-1)
-	## 計算条件
 	##################
 	# 使用するCognacのバージョン
 	ver_cognac = u.get('CalcCond.Cognac_ver')
@@ -139,112 +140,32 @@ def readconditionudf():
 	basic_cond = [ver_cognac, blank_udf, base_udf, core]
 	#######################################################
 	## 計算ターゲット
-	###################
-	## ポリマー鎖の設定
-	sim_type = u.get('SimulationCond.Type.SimType')
-	#################################
-	if sim_type == "NPT":
-		n_segments = u.get('SimulationCond.Type.NPT.N_Segments')
-		n_sc = u.get('SimulationCond.Type.NPT.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.NPT.N_UnitCells')
-		multi_init = 0
-		nv = 1.0
-		expand = u.get('SimulationCond.Type.NPT.ExpansionRatio')
-		step_press = u.get('SimulationCond.Type.NPT.StepPress[]')
-		step_rfc = []
-	elif sim_type == "Entangled":
-		n_segments = u.get('SimulationCond.Type.Entangled.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Entangled.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Entangled.N_UnitCells')
-		step_rfc = u.get('SimulationCond.Type.Entangled.Step_rfc[]')
-		multi_init = 0
-		nv = 1.0
-		expand = 1.0
-		step_press = []
-	elif sim_type == "Multi":
-		n_segments = u.get('SimulationCond.Type.Multi.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Multi.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Multi.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Multi.Multiplicities')
-		nv = 1.0
-		expand = u.get('SimulationCond.Type.Multi.ExpansionRatio')
-		step_press = u.get('SimulationCond.Type.Multi.StepPress[]')
-		step_rfc = []
-	elif sim_type == "Multi_entangled":
-		n_segments = u.get('SimulationCond.Type.Multi_entangled.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Multi_entangled.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Multi_entangled.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Multi_entangled.Multiplicities')
-		step_rfc = u.get('SimulationCond.Type.Multi_entangled.Step_rfc[]')
-		nv = 1.0
-		expand = 1.0
-		step_press = []
-	elif sim_type == "Gel":
-		n_segments = u.get('SimulationCond.Type.Gel.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Gel.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Gel.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Gel.Multiplicities')
-		expand = u.get('SimulationCond.Type.Gel.ExpansionRatio')
-		step_press = u.get('SimulationCond.Type.Gel.StepPress[]')
-		nv = 1.0
-		step_rfc = []
-	elif sim_type == "Gel_entangled":
-		n_segments = u.get('SimulationCond.Type.Gel_entangled.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Gel_entangled.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Gel_entangled.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Gel_entangled.Multiplicities')
-		step_rfc = u.get('SimulationCond.Type.Gel_entangled.Step_rfc[]')
-		nv = 1.0
-		expand = 1.0
-		step_press = []
-	elif sim_type == "Gel_concd":
-		n_segments = u.get('SimulationCond.Type.Gel_concd.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Gel_concd.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Gel_concd.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Gel_concd.Multiplicities')
-		nv = u.get('SimulationCond.Type.Gel_concd.NV')
-		expand = u.get('SimulationCond.Type.Gel_concd.ExpansionRatio')
-		step_press = u.get('SimulationCond.Type.Gel_concd.StepPress[]')
-		step_rfc = []
-	elif sim_type == "Gel_concd_entangled":
-		n_segments = u.get('SimulationCond.Type.Gel_concd_entangled.N_Segments')
-		n_sc = u.get('SimulationCond.Type.Gel_concd_entangled.N_Subchain')
-		n_cell = u.get('SimulationCond.Type.Gel_concd_entangled.N_UnitCells')
-		multi_init = u.get('SimulationCond.Type.Gel_concd_entangled.Multiplicities')
-		nv = u.get('SimulationCond.Type.Gel_concd_entangled.NV')
-		step_rfc = u.get('SimulationCond.Type.Gel_concd_entangled.Step_rfc[]')
-		expand = 1.0
-		step_press = []
-	else:
-		multi_init = 0
-	#########################################
-	equilib_repeat = u.get('SimulationCond.Equilib_Condition.repeat')
-	equilib_time = u.get('SimulationCond.Equilib_Condition.Time')
-	target_density = u.get('SimulationCond.target_density')
-	########################################################
-	l_bond = 0.97
-	#
-	if n_segments <= 10:
-		c_n = 1.5
-	elif n_segments <= 20:
-		c_n = 1.65
-	elif n_segments <= 40:
-		c_n = 1.7
-	else:
-		c_n = 1.75
 
 	###################
 	## Networkモデルの設定
-	nw_model = u.get('SimulationCond.Model.TargetModel')
+	nw_model = u.get('TargetCond.Model.TargetModel')
 	###################
 	## Networkモデルの設定
+	restart = ''
+	cond_top = []
+	n_hist = 0
+	#
 	if nw_model == "Regular_NW":
-		strand_type = u.get('SimulationCond.Model.Regular_NW.chains')
-		restart = ''
-		cond_top = []
-		n_hist = 0
+		strand_type = u.get('TargetCond.Model.Regular_NW.chains')
 	elif nw_model == "Random_NW":
-		strand_type = u.get('SimulationCond.Model.Random_NW.chains')
+		strand_type = u.get('TargetCond.Model.Random_NW.chains')
+		calc = u.get('TargetCond.Model.Random_NW.Calc_Topolpgy')
+		n_hist = u.get('TargetCond.Model.Random_NW.N_histgram')
+		if calc == 'Read':
+			restart = u.get('TargetCond.Model.Random_NW.Read.dir_name')
+			if not os.path.exists(os.path.join(restart, 'init.pickle')):
+				exit("##########\ntarget directory does not exists.")
+			elif n_strand != int(restart.split('_')[0]):
+				sys.exit("##########\nnumber of strands: selected n_strand is different from original Calculation.")
+			elif n_cell != int(restart.split('_')[2]):
+				sys.exit("##########\nnumber of cells: selected n_cell is different from original Calculation.")
+		elif calc == 'Calc':
+			cond_top = u.get('TargetCond.Model.Random_NW.Calc')
 	################
 	if strand_type == "3_Chain" or strand_type == "3_Chain_S" or strand_type == "3_Chain_D":
 		n_strand = 3
@@ -258,27 +179,57 @@ def readconditionudf():
 		n_strand = 7
 	elif strand_type == "8_Chain":
 		n_strand = 8
-	##############################################
-	if nw_model == "Random_NW":
-		calc = u.get('SimulationCond.Model.Random_NW.Calc_Topolpgy')
-		restart = ''
-		cond_top = []
-		n_hist = u.get('SimulationCond.Model.Random_NW.N_histgram')
-		if calc == 'Read':
-			restart = u.get('SimulationCond.Model.Random_NW.Read.dir_name')
-
-			if not os.path.exists(os.path.join(restart, 'init.pickle')):
-				exit("##########\ntarget directory does not exists.")
-			elif n_strand != int(restart.split('_')[0]):
-				sys.exit("##########\nnumber of strands: selected n_strand is different from original Calculation.")
-			elif n_cell != int(restart.split('_')[2]):
-				sys.exit("##########\nnumber of cells: selected n_cell is different from original Calculation.")
-			
-		elif calc == 'Calc':
-			cond_top = u.get('SimulationCond.Model.Random_NW.Calc')
-	#
+	###################
+	## ポリマー鎖の設定
+	n_segments = u.get('TargetCond.NetWork.N_Segments')
+	n_sc = u.get('TargetCond.NetWork.N_Subchain')
+	n_cell = u.get('TargetCond.NetWork.N_UnitCells')
+	#####
+	if u.get('TargetCond.Multiplisity.Set_or_Calc') == 'Set':
+		multi = u.get('TargetCond.Multiplisity.Set.Multiplicity')
+		density = 0
+	elif u.get('TargetCond.Multiplisity.Set_or_Calc') == 'Calc':
+		multi = 0
+		density = u.get('TargetCond.Multiplisity.Calc.Density')
+	#####
+	if u.get('TargetCond.Shrinkage.Shrink') == 'Yes':
+		if u.get('TargetCond.Shrinkage.Yes.Control') == 'Density':
+			density = u.get('TargetCond.Shrinkage.Yes.Density.target_density')
+			shrinkage = 0.
+		elif u.get('TargetCond.Shrinkage.Yes.Control') == 'Shrink':
+			shrinkage = u.get('TargetCond.Shrinkage.Yes.Shrinkage.value')
+			density = 0
+	elif u.get('TargetCond.Shrinkage.Shrink') == 'No':
+		shrinkage = 0
+		# density = -1
+	#####
+	topology = u.get('TargetCond.Type.Topology')
+	if topology == 'Entangled':
+		step_rfc = u.get('TargetCond.Type.Entangled.Step_rfc[]')
+		expand = 1.0
+		step_press = []
+	elif topology == 'NO_Entangled':
+		step_rfc = []
+		expand = u.get('TargetCond.Type.NO_Entangled.ExpansionRatio')
+		step_press = u.get('TargetCond.Type.NO_Entangled.StepPress[]')
+	##########
+	## シミュレーションの条件
+	equilib_repeat = u.get('SimulationCond.Equilib_Condition.repeat')
+	equilib_time = u.get('SimulationCond.Equilib_Condition.repeat')
+	#####
+	l_bond = u.get('SimulationCond.l_bond')
+	#####
+	if n_segments <= 10:
+		c_n = 1.5
+	elif n_segments <= 20:
+		c_n = 1.65
+	elif n_segments <= 40:
+		c_n = 1.7
+	else:
+		c_n = 1.75
+	#########################################################################################
 	nw_cond = [nw_model, strand_type, n_strand, n_segments, n_cell, n_sc, l_bond, c_n]
-	sim_cond = [sim_type, multi_init, target_density, nv, expand, step_press, step_rfc, equilib_repeat, equilib_time]
+	sim_cond = [topology, multi, density, shrinkage, expand, step_press, step_rfc, equilib_repeat, equilib_time]
 	rnd_cond = [restart, cond_top, n_hist]
 
 	return basic_cond, nw_cond, sim_cond, rnd_cond
@@ -297,10 +248,10 @@ class CondSetup:
 		self.l_bond = nw_cond[6]
 		self.c_n = nw_cond[7]
 		#
-		self.sim_type = sim_cond[0]
-		self.multi_init = sim_cond[1]
-		self.target_density = sim_cond[2]
-		self.nv = sim_cond[3]
+		self.topology = sim_cond[0]
+		self.multi = sim_cond[1]
+		self.density = sim_cond[2]
+		self.shrinkage = sim_cond[3]
 		self.expand = sim_cond[4]
 		self.step_press = sim_cond[5]
 		self.rfc = sim_cond[6]
@@ -353,90 +304,66 @@ class CondSetup:
 
 	###############################################################
 	def init_calc(self, e2e, n_chains, n_beads_unit, org_unitcell):
-		n_solvent = 0
-		flag = 0
-		if self.sim_type == "Entangled" or self.sim_type == "NPT":
-			org_system = org_unitcell*self.n_cell									# e2e から決めたシステムサイズ
-			calcd_multi = round(self.target_density*org_unitcell**3/n_beads_unit)	# 密度を設定値とした場合に必要な多重度
-			calcd_dens = n_beads_unit*calcd_multi/org_unitcell**3					# 上記の多重度での密度
-			err_dens = round((calcd_dens/self.target_density - 1)*100, 2) 			# 設定密度との誤差(%)
-			if abs(err_dens) > 1:
-				flag = 1
-			single_net_atom = int(n_beads_unit*self.n_cell**3.)	    				# 一つのネットワーク中の粒子数
-			total_net_atom = int(calcd_multi*single_net_atom)    					# 全システム中のネットワーク粒子数
-			system = (total_net_atom/self.target_density)**(1/3)					# その際のシステムサイズ
-			vol = system**3									    					# システム体積
-
-			fin_multi = calcd_multi
-			fin_dens = self.target_density
-
-			shrinkage = system/org_system											# 収縮比
-			mod_e2e = shrinkage*e2e													# 収縮後の末端間距離
-			unit_cell = shrinkage*org_unitcell
-
-			total_atom = int(total_net_atom)		   									# システム中の粒子総数
-			nv = 1.0
-			nu = n_chains*fin_multi/org_unitcell**3.								# ストランドの数密度
-
-		elif self.sim_type == "Multi" or self.sim_type == "Multi_entangled":
-			fin_multi = self.multi_init
-			err_dens = 0.
-			org_system = org_unitcell*self.n_cell					# e2e から決めたシステムサイズ
-			single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
-			total_net_atom = int(fin_multi*single_net_atom)    		# 全システム中のネットワーク粒子数
-
-			fin_dens = self.target_density
-			vol = total_net_atom/fin_dens							# システム体積
-			system = vol**(1./3.)									# 収縮後のシステムサイズ
-			shrinkage = system/org_system							# 収縮比
-			mod_e2e = shrinkage*e2e									# 収縮後の末端間距離
-			unit_cell = shrinkage*org_unitcell
-			
-			total_atom = int(total_net_atom)		   				# システム中の粒子総数
-			nv = 1.0
-			nu = n_chains*fin_multi*self.n_cell**3./vol				# ストランドの数密度
-
-		elif self.sim_type == "Gel" or self.sim_type == "Gel_entangled":
-			unit_cell = org_unitcell
-			org_system = org_unitcell*self.n_cell				# e2e から決めたシステムサイズ
-			mod_e2e = e2e										# 収縮後の末端間距離
-			fin_multi = self.multi_init
-			fin_dens = self.target_density
-			err_dens = 0.
-			shrinkage = 1.0								
-			system = org_unitcell*self.n_cell					# システムサイズ
-			single_net_atom = int(n_beads_unit*self.n_cell**3.)	# 一つのネットワーク中の粒子数
-			total_net_atom = int(fin_multi*single_net_atom)  	# 全システム中のネットワーク粒子数
-			vol = system**3									    # システム体積
-			total_atom = int(vol*fin_dens)		    # システム中の粒子総数
-			n_solvent = int(total_atom - total_net_atom)		# 溶媒の粒子数
-			nv = total_net_atom/total_atom						# ネットワークの体積分率
-			nu = n_chains*fin_multi*self.n_cell**3./vol		# ストランドの数密度
-
-		elif self.sim_type == "Gel_concd" or self.sim_type == "Gel_concd_entangled":
-			# unit_cell = org_unitcell
-			org_system = org_unitcell*self.n_cell
-			# mod_e2e = e2e								# 収縮後の末端間距離
-			fin_multi = self.multi_init
-			fin_dens = self.target_density
-			err_dens = 0.
-			# shrinkage = 1.0
-			single_net_atom = int(n_beads_unit*self.n_cell**3.)	    	# 一つのネットワーク中の粒子数
-			total_net_atom = int(fin_multi*single_net_atom)				# 全システム中のネットワーク粒子数
-			n_solvent = int(total_net_atom*(1.0 - self.nv)/self.nv)		# 溶媒の粒子数
-			total_atom = int(total_net_atom + n_solvent)			    # システム中の粒子総数
-			vol = total_atom/fin_dens									# システム体積
-			system = vol**(1./3.)										# システムサイズ
-			
-			shrinkage = system/org_system								# 収縮比
-			mod_e2e = shrinkage*e2e										# 収縮後の末端間距離
-			unit_cell = shrinkage*org_unitcell
-
-			# total_atom = int(vol*fin_dens)		   			# システム中の粒子総数
-			nv = self.nv												# ネットワークの体積分率
-			nu = n_chains*fin_multi*self.n_cell**3./vol					# ストランドの数密度
+		calcd_density = 0
+		if self.multi == 0:
+			if self.shrinkage == 0.:
+				# org_system = org_unitcell*self.n_cell							# e2e から決めたシステムサイズ
+				calcd_multi = round(self.density*org_unitcell**3/n_beads_unit)	# 密度を設定値とした場合に必要な多重度
+				calcd_density = n_beads_unit*calcd_multi/org_unitcell**3		# 上記の多重度での密度
+				err_dens = round((calcd_density/self.density - 1)*100, 2) 		# 設定密度との誤差(%)
+				if abs(err_dens) > 1:
+					print(u"\n##### \n圧縮後の密度が、設定したい密度と 1% 以上違います。\nそれでも計算しますか？\n#####\n")
+				single_net_atom = int(n_beads_unit*self.n_cell**3.)	    		# 一つのネットワーク中の粒子数
+				total_net_atom = int(calcd_multi*single_net_atom)    			# 全システム中のネットワーク粒子数
+				mod_unitcell = (calcd_multi*n_beads_unit/self.density)**(1/3)					# その際のシステムサイズ
+				self.shrinkage = mod_unitcell/org_unitcell								# 収縮比
+				system = mod_unitcell*self.n_cell
+				vol = system**3									    			# システム体積
+				print(self.n_cell)
+				self.multi = calcd_multi
+				# self.density = calcd_density
+				
+				mod_e2e = self.shrinkage*e2e											# 収縮後の末端間距離
+				unit_cell = mod_unitcell
+			elif self.shrinkage > 0.:
+				sys.exit(u"\n##### \n多重度を自動計算にした場合、収縮条件は選択できません\n#####\n")
+		elif self.multi != 0:
+			if self.shrinkage == 0.:
+				if self.density == 0.:
+					err_dens = 0.
+					system = org_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+					self.density = n_beads_unit*self.multi/org_unitcell**3	# 多重度での密度
+					single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
+					total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+					vol = system**3									    	# システム体積
+					mod_e2e = e2e											# 収縮後の末端間距離
+					unit_cell = org_unitcell
+				elif self.density > 0.:
+					sys.exit(u"\n##### \nSomething wrong!!\n#####\n")
+			elif self.shrinkage != 0.:
+				if self.density == 0.:
+					err_dens = 0.
+					mod_unitcell = org_unitcell*self.shrinkage
+					system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+					self.density = n_beads_unit*self.multi/mod_unitcell**3	# 多重度での密度
+					single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
+					total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+					vol = system**3									    	# システム体積
+					mod_e2e = self.shrinkage*e2e		
+					unit_cell = mod_unitcell									# 収縮後の末端間距離
+				elif self.density > 0.:
+					err_dens = 0.
+					mod_unitcell = (n_beads_unit*self.multi/self.density)**(1/3)
+					self.shrinkage = mod_unitcell/org_unitcell
+					single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
+					total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+					system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+					vol = system**3									    	# システム体積
+					mod_e2e = self.shrinkage*e2e											# 収縮後の末端間距離
+					unit_cell = mod_unitcell
 		else:
 			sys.exit("Something Wrong!!")
+		nu = n_chains/vol
 		#
 		text = "#########################################" + "\n"
 		text += "ネットワークトポロジー\t\t" + str(self.nw_model) + "\n"
@@ -448,25 +375,20 @@ class CondSetup:
 		text += "#########################################" + "\n"
 		text += "当初の単位ユニット:\t\t" + str(round(org_unitcell, 4)) + "\n"
 		text += "一辺当たりの単位ユニット数\t" + str(self.n_cell) + "\n"
-		text += "当初のシステムサイズ:\t\t" + str(round(org_system, 4)) + "\n"
+		# text += "当初のシステムサイズ:\t\t" + str(round(org_system, 4)) + "\n"
 		text += "#########################################" + "\n"
-		text += "ネットワークタイプ\t\t" + str(self.sim_type) + "\n"
+		text += "ネットワークタイプ\t\t" + str(self.topology) + "\n"
 		text += "#########################################" + "\n"
-		text += "初期設定密度:\t\t\t" + str(self.target_density) + "\n"
-		text += "多重度:\t\t\t\t" + str(fin_multi) + "\n"
+		text += "設定密度:\t\t\t" + str(self.density) + "\n"
+		text += "多重度:\t\t\t\t" + str(self.multi) + "\n"
 		text += "NW の全セグメント数:\t\t" + str(total_net_atom) + "\n"
-		text += "収縮比:\t\t\t\t" + str(round(shrinkage, 4)) + "\n"
-		text += "任意の多重度での密度:\t\t" + str(round(fin_dens, 4)) + "\n"
+		text += "収縮比:\t\t\t\t" + str(round(self.shrinkage, 4)) + "\n"
+		text += "任意の多重度での密度:\t\t" + str(round(calcd_density, 4)) + "\n"
 		text += "密度の誤差:\t\t\t" + str(round(err_dens, 3)) + "%" + "\n"
-		text += "収縮後の末端間距離:\t\t" + str(round(mod_e2e, 4)) + "\n"
+		# text += "収縮後の末端間距離:\t\t" + str(round(mod_e2e, 4)) + "\n"
 		text += "システムサイズ:\t\t\t" + str(round(system, 4)) + "\n"
 		text += "#########################################" + "\n"
-		if 'Gel' in self.sim_type:
-			text += "溶媒のセグメント数:\t\t" + str(n_solvent) + "\n"
-			text += "ネットワークの体積分率:\t\t" + str(round(nv, 4)) + "\n"
-			text += "全セグメント数:\t\t\t" + str(total_atom) + "\n"
-			text += "#########################################" + "\n"
-		if "tangled" in self.sim_type:
+		if self.topology == 'Entangled':
 			text += "Slow Push Off での rfc 条件:\t" + ', '.join(map(str, self.rfc)) + "\n"
 		else:
 			text += "NPT 計算時の初期膨張率:\t\t" + str(self.expand) + "\n"
@@ -476,13 +398,13 @@ class CondSetup:
 		text += "#########################################" + "\n"
 		print(text)
 
-		if (self.sim_type == "Entangled" or self.sim_type == "NPT") and flag == 1:
-			print(u"\n##### \n圧縮後の密度が、設定したい密度と 1% 以上違います。\nそれでも計算しますか？\n#####\n")
+		# if (topology == "Entangled" or topology == "NPT") and flag == 1:
+		# 	print(u"\n##### \n圧縮後の密度が、設定したい密度と 1% 以上違います。\nそれでも計算しますか？\n#####\n")
 		#
 		with open("calc_conditions.txt", 'w') as f:
 			f.write(text)
 		#
-		target_cond = [fin_multi, system, unit_cell, total_net_atom, nu, self.nw_model, n_solvent, e2e, mod_e2e, shrinkage, err_dens]
+		target_cond = [self.multi, system, unit_cell, total_net_atom, nu, self.nw_model, e2e, mod_e2e, self.shrinkage, err_dens]
 
 		return target_cond
 	
