@@ -10,40 +10,40 @@ from UDFManager import UDFManager
 class MakeInitUDF:
 	def __init__(self, basic_cond, nw_cond, sim_cond, target_cond, calcd_data_dic):
 		#
-		self.ver_cognac = basic_cond[0]
+		# self.ver_cognac = basic_cond[0]
 		self.blank_udf = basic_cond[1]
 		self.base_udf = basic_cond[2]
-		self.core = ' -n ' + str(basic_cond[3])
+		# self.core = ' -n ' + str(basic_cond[3])
 		#
-		if nw_cond[0] == "Regular_NW":
-			self.nw_model = 'RegNW'
-		elif nw_cond[0] == "Random_NW":
-			self.nw_model = 'RandNW'
-		self.strand = nw_cond[1]
-		self.n_strand = nw_cond[2]
-		self.n_segments = nw_cond[3]
-		self.n_cell = nw_cond[4]
-		self.n_sc = nw_cond[5]
-		self.l_bond = nw_cond[6]
-		self.c_n = nw_cond[7]
+		# if nw_cond[0] == "Regular_NW":
+		# 	self.nw_model = 'RegNW'
+		# elif nw_cond[0] == "Random_NW":
+		# 	self.nw_model = 'RandNW'
+		# self.strand = nw_cond[1]
+		# self.n_strand = nw_cond[2]
+		# self.n_segments = nw_cond[3]
+		# self.n_cell = nw_cond[4]
+		# self.n_sc = nw_cond[5]
+		# self.l_bond = nw_cond[6]
+		# self.c_n = nw_cond[7]
 		#
 		self.sim_type = sim_cond[0]
-		self.multi_init = sim_cond[1]
+		# self.multi_init = sim_cond[1]
 		self.target_density = sim_cond[2]
-		self.nv = sim_cond[3]
+		# self.nv = sim_cond[3]
 		self.expand = sim_cond[4]
-		self.step_press = sim_cond[5]
-		self.rfc = sim_cond[6]
-		self.equilib_repeat = sim_cond[7]
-		self.equilib_time = sim_cond[8]
+		# self.step_press = sim_cond[5]
+		# self.rfc = sim_cond[6]
+		# self.equilib_repeat = sim_cond[7]
+		# self.equilib_time = sim_cond[8]
 		#
-		self.multi = target_cond[0]
+		# self.multi = target_cond[0]
 		self.system_size = target_cond[1]
 		self.unit_cell = target_cond[2]
 		self.total_atom = target_cond[3]
-		self.nu = target_cond[4]
-		self.structure = target_cond[5]
-		self.n_solvent = target_cond[6]
+		# self.nu = target_cond[4]
+		# self.structure = target_cond[5]
+		# self.n_solvent = target_cond[6]
 		#
 		self.calcd_data_dic = calcd_data_dic
 		# 条件設定
@@ -77,23 +77,23 @@ class MakeInitUDF:
 		self.lj_cond = [2**(1/6), 1.0, 1.0, 1.0, 1.0]	
 	################################################################################
 	# UDFファイルを設定し、バッチ処理を作成
-	def setup_baseudf(self):
-		# 計算用のディレクトリーを作成
-		target_dir = self.make_dir()
+	def setup_baseudf(self, target_dir):
+		# # 計算用のディレクトリーを作成
+		# target_dir = self.make_dir()
 		# base_udfを作成
 		self.make_base_udf(target_dir)
 
 		return target_dir
-	################################################################################
-	# 計算用のディレクトリーを作成
-	def make_dir(self):
-		target_dir = self.nw_model + "_" + self.sim_type + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
-		os.makedirs(target_dir, exist_ok = True)
-		with open(os.path.join(target_dir, "calc.dat"), "w") as f:
-			f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.structure)
-		# with open(os.path.join(target_dir, "calc_cond.txt"), "w") as f:
-		# 	f.write(self.cond_txt)
-		return target_dir
+	# ################################################################################
+	# # 計算用のディレクトリーを作成
+	# def make_dir(self):
+	# 	target_dir = self.nw_model + "_" + self.sim_type + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
+	# 	os.makedirs(target_dir, exist_ok = True)
+	# 	with open(os.path.join(target_dir, "calc.dat"), "w") as f:
+	# 		f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.structure)
+	# 	# with open(os.path.join(target_dir, "calc_cond.txt"), "w") as f:
+	# 	# 	f.write(self.cond_txt)
+	# 	return target_dir
 
 	############################################
 	# base_udfを作成
@@ -247,7 +247,7 @@ class MakeInitUDF:
 			n_atom = 0
 			for atom in atom_all:
 				# atom
-				id_shift = len(atom_all) + self.n_solvent
+				id_shift = len(atom_all) # + self.n_solvent
 				atom_id = atom[0] + count*id_shift
 				u.put(atom_id, 						pa + 'Atom_ID', [count, n_atom])
 				u.put(self.atom_name[atom[1]], 		pa + 'Atom_Name', [count, n_atom])
@@ -303,24 +303,24 @@ class MakeInitUDF:
 				# tmp_set.append(list(mod_pos))
 				self.totalatom +=1
 			count+=1
-	# ソルベントのアトムをセット
-		if self.n_solvent != 0:
-			sol_pos = [self.expand*n*self.system_size for n in np.random.random_sample((self.n_solvent,3))]
-			for mol in range(self.n_solvent):
-				u.put('Solvent', p + 'Mol_Name', [count])
-				atom_id += 1
-				# atom
-				u.put(atom_id,				pa + 'Atom_ID', [count, 0])
-				u.put("Solvent", 			pa + 'Atom_Name', [count, 0])
-				u.put("Solvent", 			pa + 'Atom_Type_Name', [count, 0])
-				u.put(0, 					pa + 'Chirality', [count, 0])
-				u.put(1, 					pa + 'Main_Chain', [count, 0])
-				# interaction site
-				u.put("site_Solvent", 		pi + 'Type_Name', [count, 0])
-				u.put(0, 					pi + 'atom[]', [count, 0, 0])
-				# position
-				u.put(list(sol_pos[mol]), sp, [count, 0])
-				count += 1
+	# # ソルベントのアトムをセット
+	# 	if self.n_solvent != 0:
+	# 		sol_pos = [self.expand*n*self.system_size for n in np.random.random_sample((self.n_solvent,3))]
+	# 		for mol in range(self.n_solvent):
+	# 			u.put('Solvent', p + 'Mol_Name', [count])
+	# 			atom_id += 1
+	# 			# atom
+	# 			u.put(atom_id,				pa + 'Atom_ID', [count, 0])
+	# 			u.put("Solvent", 			pa + 'Atom_Name', [count, 0])
+	# 			u.put("Solvent", 			pa + 'Atom_Type_Name', [count, 0])
+	# 			u.put(0, 					pa + 'Chirality', [count, 0])
+	# 			u.put(1, 					pa + 'Main_Chain', [count, 0])
+	# 			# interaction site
+	# 			u.put("site_Solvent", 		pi + 'Type_Name', [count, 0])
+	# 			u.put(0, 					pi + 'atom[]', [count, 0, 0])
+	# 			# position
+	# 			u.put(list(sol_pos[mol]), sp, [count, 0])
+	# 			count += 1
 
 		#--- Write UDF ---
 		u.write(target_udf)

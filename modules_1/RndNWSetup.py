@@ -11,392 +11,12 @@ import os
 import pickle
 from multiprocessing import Pool
 ################################################################################
-class SelectSet:
-	def __init__(self, nw_cond, target_cond, rnd_cond):
-		# self.nw_cond = nw_cond
-
-		self.nw_model = nw_cond[0]
-		self.strand = nw_cond[1]
-		self.n_strand = nw_cond[2]
-		self.n_segments = nw_cond[3]
+## トポロジーの異なるネットワークを探索して、代数的連結性の分布関数を策定
+################################################################################
+class Make8:
+	def __init__(self, nw_cond):
 		self.n_cell = nw_cond[4]
-		self.n_sc = nw_cond[5]
-		# self.l_bond = nw_cond[6]
-		# self.c_n = nw_cond[7]
-
-		# self.target_cond = target_cond
-		self.multi = target_cond[0]
-
-		self.restart = rnd_cond[0] 
-		self.cond_top = rnd_cond[1]
-		self.n_hist = rnd_cond[2]
-
-	############################
-	def select_set(self):
-		# ネットワークを設定
-		if self.nw_model == "Regular_NW":
-			calcd_data_dic = self.regnw_setup()
-		elif self.nw_model == "Random_NW":
-			calcd_data_dic = self.rndnw_setup()
-
-		return calcd_data_dic
-	
-	#######################################
-	def regnw_setup(self):
-		calcd_data_dic = self.calc_all()
-		return calcd_data_dic
-
-	def rndnw_setup(self):
-		self.base_top_list = self.make_8chain_dic()
-
-		if self.restart == '':
-			# トポロジーの異なるネットワークを探索して、任意の多重度のネットワークポリマーの代数的連結性の分布関数を策定
-			candidate_list, target_dir = self.top_search()
-		else:
-			# 設定したリスタートファイルを読み込んで、リストを作成
-			candidate_list, target_dir = self.top_select()
-
-		# sel = modules_1.RndNWSetup.Select(self.restart, self.n_hist, self.target_cond)
-		top_dic_list = self.nw_search(candidate_list, target_dir)
-
-		###########################################
-		# ターゲットとなるネットワーク全体の辞書を設定。
-		calcd_data_dic = self.make_data_dic(top_dic_list)
-		return calcd_data_dic
-
-
-	################################################
-	## REGULAR NW SETUP
-	################################################
-	def calc_all(self):
-		# 架橋点 JP を設定
-		jp_xyz, strand_se_xyz = self.calc_jp_strands()
-		#
-		calcd_data_dic = self.set_atom(jp_xyz, strand_se_xyz)
 		
-		return calcd_data_dic
-	##########################################
-	# JPおよびサブチェインの始点と終点のXYZを設定
-	def calc_jp_strands(self):
-		# jp_xyz は、JPの座標のリスト
-		# strand_se_xyz は、サブチェインの出発点と終点のリスト
-		if self.strand == "3_Chain_S":
-			# JPを設定
-			jp_xyz = [
-			[
-			[0, 0, 0],
-			[0, 0.25, 0.25],
-			[0.25, 0.25, 0.5],
-			[0.25, 0, 0.75],
-			[0.5, 0.5, 0.5],
-			[0.5, 0.75, 0.75],
-			[0.75, 0.5, 0.25],
-			[0.75, 0.75, 0]
-			]
-			]
-			# サブチェインの出発点と終点を設定
-			strand_se_xyz = [
-			[
-			[[0, 0, 0], [0, 0.25, 0.25]],
-			[[0, 0.25, 0.25], [0.25, 0.25, 0.5]],
-			[[0.25, 0.25, 0.5], [0.25, 0, 0.75]],
-			[[0.25, 0.25, 0.5], [0.5, 0.5, 0.5]],
-			[[0.5, 0.5, 0.5], [0.5, 0.75, 0.75]],
-			[[0.5, 0.5, 0.5], [0.75, 0.5, 0.25]],
-			[[0.75, 0.5, 0.25], [0.75, 0.75, 0]],
-			[[0.75, 0.5, 0.25], [1, 0.25, 0.25]],
-			[[0.25, 0, 0.75], [0, 0, 1]],
-			[[0.5, 0.75, 0.75], [0.25, 1, 0.75]],
-			[[0.5, 0.75, 0.75], [0.75, 0.75, 1]],
-			[[0.75, 0.75, 0], [1, 1, 0]]
-			]
-			]
-
-		elif self.strand == "3_Chain_D":
-			# JPを設定
-			jp_xyz = [
-			[
-			[0, 0, 0],
-			[0, 0.25, 0.25],
-			[0.25, 0.25, 0.5],
-			[0.25, 0, 0.75],
-			[0.5, 0.5, 0.5],
-			[0.5, 0.75, 0.75],
-			[0.75, 0.5, 0.25],
-			[0.75, 0.75, 0]
-			],
-			[	#ここから二つ目
-			[0, 0.5, 0.75],
-			[0, 0.75, 0.5],
-			[0.25, 0.75, 0.25],
-			[0.25, 0.5, 0],
-			[0.5, 0.25, 0],
-			[0.5, 0, 0.25],
-			[0.75, 0, 0.5],
-			[0.75, 0.25, 0.75]
-			]
-			]
-			# サブチェインの出発点と終点を設定
-			strand_se_xyz = [
-			[
-			[[0, 0, 0], [0, 0.25, 0.25]],
-			[[0, 0.25, 0.25], [0.25, 0.25, 0.5]],
-			[[0.25, 0.25, 0.5], [0.25, 0, 0.75]],
-			[[0.25, 0.25, 0.5], [0.5, 0.5, 0.5]],
-			[[0.5, 0.5, 0.5], [0.5, 0.75, 0.75]],
-			[[0.5, 0.5, 0.5], [0.75, 0.5, 0.25]],
-			[[0.75, 0.5, 0.25], [0.75, 0.75, 0]],
-			[[0.75, 0.5, 0.25], [1, 0.25, 0.25]],
-			[[0.25, 0, 0.75], [0, 0, 1]],
-			[[0.5, 0.75, 0.75], [0.25, 1, 0.75]],
-			[[0.5, 0.75, 0.75], [0.75, 0.75, 1]],
-			[[0.75, 0.75, 0], [1, 1, 0]]
-			],
-			[
-			[[0, 0.5, 0.75], [0, 0.75, 0.5]],
-			[[0, 0.75, 0.5], [0.25, 0.75, 0.25]],
-			[[0.25, 0.75, 0.25], [0.25, 0.5, 0]],
-			[[0.25, 0.5, 0], [0.5, 0.25, 0]],
-			[[0.5, 0.25, 0], [0.5, 0, 0.25]],
-			[[0.5, 0, 0.25], [0.75, 0, 0.5]],
-			[[0.75, 0, 0.5], [0.75, 0.25, 0.75]],
-			[[0, 0.5, 0.75], [0.25, 0.5, 1]],
-			[[0.25, 0.75, 0.25], [0.5, 1, 0.25]],
-			[[0.75, 0.25, 0.75], [0.5, 0.25, 1]],
-			[[0.75, 0.25, 0.75], [1, 0.5, 0.75]],
-			[[0.75, 1, 0.5], [1, 0.75, 0.5]]
-			]
-			]
-
-		elif self.strand == "4_Chain":
-			# JPを設定
-			jp_xyz = [
-			[
-			[0.0, 0.0, 0.0],
-			[0.0, 0.5, 0.5],
-			[0.5, 0.0, 0.5],
-			[0.5, 0.5, 0.0],
-			[0.25, 0.25, 0.25],
-			[0.25, 0.75, 0.75],
-			[0.75, 0.25, 0.75],
-			[0.75, 0.75, 0.25]
-			]
-			]
-			# サブチェインの出発点と終点を設定
-			strand_se_xyz = [
-			[
-			[[0.25, 0.25, 0.25], [0.0, 0.0, 0.0]],	# No.1
-			[[0.25, 0.25, 0.25], [0.0, 0.5, 0.5]],
-			[[0.25, 0.25, 0.25], [0.5, 0.0, 0.5]],
-			[[0.25, 0.25, 0.25], [0.5, 0.5, 0.0]],
-			[[0.25, 0.75, 0.75], [0.0, 0.5, 0.5]],	# No.2
-			[[0.25, 0.75, 0.75], [0.0, 1.0, 1.0]],
-			[[0.25, 0.75, 0.75], [0.5, 0.5, 1.0]],
-			[[0.25, 0.75, 0.75], [0.5, 1.0, 0.5]],
-			[[0.75, 0.25, 0.75], [0.5, 0.0, 0.5]],	# No.3
-			[[0.75, 0.25, 0.75], [0.5, 0.5, 1.0]],
-			[[0.75, 0.25, 0.75], [1.0, 0.0, 1.0]],
-			[[0.75, 0.25, 0.75], [1.0, 0.5, 0.5]],
-			[[0.75, 0.75, 0.25], [0.5, 0.5, 0.0]],	# No.4
-			[[0.75, 0.75, 0.25], [0.5, 1.0, 0.5]],
-			[[0.75, 0.75, 0.25], [1.0, 0.5, 0.5]],
-			[[0.75, 0.75, 0.25], [1.0, 1.0, 0.0]]
-			]
-			]
-
-		elif self.strand == "6_Chain":
-			# JPを設定
-			jp_xyz = [
-			[
-			[0.,0.,0.]
-			]
-			]
-			# サブチェインの出発点と終点を設定
-			strand_se_xyz = [
-			[
-			[[0., 0., 0.], [1, 0, 0]],
-			[[0., 0., 0.], [0, 1, 0]],
-			[[0., 0., 0.], [0, 0, 1]]
-			]
-			]
-
-		elif self.strand == "8_Chain":
-			# JPを設定
-			jp_xyz = [
-			[
-			[0.,0.,0.],
-			[0.5,0.5,0.5]
-			]
-			]
-			# サブチェインの出発点と終点を設定
-			strand_se_xyz = [
-			[
-			[[0.5, 0.5, 0.5], [0, 0, 0]],
-			[[0.5, 0.5, 0.5], [1, 0, 0]],
-			[[0.5, 0.5, 0.5], [0, 1, 0]],
-			[[0.5, 0.5, 0.5], [1, 1, 0]],
-			[[0.5, 0.5, 0.5], [0, 0, 1]],
-			[[0.5, 0.5, 0.5], [1, 0, 1]],
-			[[0.5, 0.5, 0.5], [0, 1, 1]],
-			[[0.5, 0.5, 0.5], [1, 1, 1]]
-			]
-			]
-
-		return jp_xyz, strand_se_xyz
-
-	#########################################################
-	def set_atom(self, jp_xyz, strand_se_xyz):
-		calcd_data_dic={}
-		for i in (range(self.multi)):
-			for mol, jp in enumerate(jp_xyz):
-				atom_all = []
-				pos_all = {}
-				# システム全体にわたるジャンクションポイントのxyzとIDの辞書を作成
-				jp_id_dic, jp_xyz_dic, atom_jp = self.set_jp_id_reg(jp, mol)
-				atom_all.extend(atom_jp)
-				pos_all.update(jp_xyz_dic)
-				# print(jp_xyz_dic)
-				# サブチェイン中の各アトムのxyzリストとボンドリストを作成
-				strand_xyz, bond_all, atom_sc, angle_all = self.set_strands_8(jp_id_dic, strand_se_xyz[mol], mol)
-				#
-				atom_all.extend(atom_sc)
-				pos_all.update(strand_xyz)
-				#
-				calcd_data_dic[i] = {"atom_all":atom_all, "bond_all":bond_all, "pos_all":pos_all, "angle_all":angle_all}
-		return calcd_data_dic
-
-	###################################################
-	# システム全体にわたるJPのxyzとIDの辞書を作成
-	def set_jp_id_reg(self, jp_xyz, mol):
-		jp_id_dic = {}
-		jp_xyz_dic = {}
-		atom_jp = []
-		jp_id = 0
-		for z in range(self.n_cell):
-			for y in range(self.n_cell):
-				for x in range(self.n_cell):
-					base_xyz = np.array([x,y,z])
-					for jp in jp_xyz:
-						jp_id_dic[tuple(np.array(jp) + base_xyz)] = (jp_id)
-						jp_xyz_dic[(jp_id)] = tuple(np.array(jp) + base_xyz)
-						atom_jp.append([jp_id, 2*mol + 0, 0])
-						jp_id += 1
-		return jp_id_dic, jp_xyz_dic, atom_jp
-
-	#########################################################
-	# サブチェイン中の各アトムのxyzリストとボンドリストを作成
-	def set_strands_8(self, jp_id_dic, strand_se_xyz, mol):
-		strand_xyz = {}
-		bond_all = {}
-		atom_sc = []
-		angle_all = []
-		sub_id = len(jp_id_dic)
-		bond_id = 0
-		for z in range(self.n_cell):
-			for y in range(self.n_cell):
-				for x in range(self.n_cell):
-					b_xyz = (x,y,z)
-					for se_xyz in strand_se_xyz:
-						tmp_xyz, tmp_bond, new_sub_id, new_bond_id, tmp_atom_sc, tmp_angle = self.calc_single_strand_reg(jp_id_dic, sub_id, bond_id, b_xyz, se_xyz, mol)
-						strand_xyz.update(tmp_xyz)
-						bond_all.update(tmp_bond)
-						atom_sc.extend(tmp_atom_sc)
-						angle_all.append(tmp_angle)
-						sub_id = new_sub_id
-						bond_id = new_bond_id
-		return strand_xyz, bond_all, atom_sc, angle_all
-
-	###############################################################
-	# 一本のサブチェイン中の各アトムのxyzリストとボンドリストを作成
-	def calc_single_strand_reg(self, jp_id_dic, sub_id, bond_id, b_xyz, se_xyz, mol):
-		tmp_xyz = {}
-		tmp_bond = {}
-		tmp_angle = []
-		tmp_atom_sc = []
-		bas_xyz = np.array(b_xyz)
-		# サブチェインの末端間のベクトルを設定
-		start_xyz = np.array(se_xyz[0]) + bas_xyz
-		end_xyz = np.array(se_xyz[1]) + bas_xyz
-		vec = end_xyz - start_xyz
-		# ストランドの鎖長分のループ処理
-		unit_len = 1./(self.n_segments + 1)
-		ortho_vec = self.find_ortho_vec(vec)
-		mod_o_vec = np.linalg.norm(vec)*ortho_vec
-		# 始点のアトムのIDを設定
-		mod_xyz = list(start_xyz)[:]
-		for dim in range(3):
-			if mod_xyz[dim] == self.n_cell:
-				mod_xyz[dim] = 0
-		s_id = jp_id_dic[tuple(mod_xyz)]
-		tmp_angle.append(s_id)
-		# 終点のアトムのIDを周期境界条件で変更
-		mod_xyz = list(end_xyz)[:]
-		for dim in range(3):
-			if mod_xyz[dim] == self.n_cell:
-				mod_xyz[dim] = 0
-		E_id = jp_id_dic[tuple(mod_xyz)]
-		# サブチェインの鎖長分のループ処理
-		for seg in range(self.n_segments):
-			pos = tuple(start_xyz + vec*(seg + 1)/(self.n_segments + 1.))
-			tmp_xyz[sub_id] = pos
-
-			if seg == 0 or seg == self.n_segments - 1:
-				tmp_atom_sc.append([sub_id, 1, 1])
-			else:
-				tmp_atom_sc.append([sub_id, 2, 2])
-			e_id = sub_id
-			#
-			if seg == 0:
-				bond = 0
-			else:
-				bond = 1
-			tmp_bond[bond_id] = tuple([bond, [s_id, e_id]])
-			bond_id += 1
-			tmp_angle.append(e_id)
-			s_id = e_id
-			sub_id += 1
-			
-			if self.n_sc != 0:
-				sc_s_id = s_id
-				for i in range(self.n_sc):
-					tmp_xyz[sub_id] = tuple(np.array(pos)  +  (i + 1)*mod_o_vec*unit_len)
-					tmp_atom_sc.append([sub_id, 2, 1])
-					sc_e_id = sub_id
-					#
-					bond = 2
-					tmp_bond[bond_id] = tuple([bond, [sc_s_id, sc_e_id]])
-					sc_s_id = sc_e_id
-					sub_id += 1
-					bond_id += 1
-			
-		e_id = E_id
-		bond = 0
-		tmp_bond[bond_id] = tuple([bond, [s_id, e_id]])
-		tmp_angle.append(e_id)
-		bond_id += 1
-		return tmp_xyz, tmp_bond, sub_id, bond_id, tmp_atom_sc, tmp_angle
-
-	######
-	def find_ortho_vec(self, list):
-		vec = np.array(list).reshape(-1,1)
-		# 線形独立である新たな三次元ベクトルを見つける。
-		rank = 0
-		while rank != 2:
-			a = np.array(np.random.rand(3)).reshape(-1,1)
-			target = np.hstack((vec, a))
-			rank = np.linalg.matrix_rank(target)
-		# QR分解により
-		q, r = np.linalg.qr( target )
-		ortho_vec = q[:,1]
-		return ortho_vec
-
-
-	################################################################################
-	## RANDOM NW SETUP
-	################################################################################
-
-	# 基本構造として、8Chainモデルを設定
-	def make_8chain_dic(self):
 		# ユニットセルでの、jp およびサブチェインの始点と終点のXYZを設定
 		self.jp_xyz = [
 				[0.,0.,0.], 
@@ -413,8 +33,12 @@ class SelectSet:
 					[[0.5, 0.5, 0.5], [1, 1, 1]]
 					]
 		self.start_jp = [0.5, 0.5, 0.5]
+	
+	###########################################
+	# 基本構造として、8Chainモデルを設定
+	def make_8chain_dic(self):
 		# システム全体にわたるピボットのxyzとIDの辞書を作成
-		jp_id_dic, jp_xyz_dic, atom_jp, n_jp = self.set_jp_id_rnd()
+		jp_id_dic, jp_xyz_dic, atom_jp, n_jp = self.set_jp_id()
 		# ストランドの結合状態を記述
 		init_8ch_dic, vector_dic = self.set_strands(jp_id_dic)
 		#
@@ -424,7 +48,7 @@ class SelectSet:
 
 	##########################################
 	# システム全体にわたるjpのxyzとIDの辞書を作成
-	def set_jp_id_rnd(self):
+	def set_jp_id(self):
 		jp_id = 0
 		jp_id_dic = {}
 		jp_xyz_dic = {}
@@ -470,22 +94,30 @@ class SelectSet:
 						str_id+=1
 		return init_8ch_dic, vector_dic
 
-
 ################################################################################
 ## トポロジーの異なるネットワークを探索して、代数的連結性の分布関数を策定
 ################################################################################
+class ModifyTop:
+	def __init__(self, base_top_list, nw_cond, cond_top, target_cond, hist_bins):
+		self.init_dic = base_top_list[0]
+		self.n_jp = base_top_list[3]
+		#
+		self.n_strand = nw_cond[2]
+		self.n_cell = nw_cond[4]
+		
+		self.pre_try = cond_top[0] 
+		self.pre_sampling = cond_top[1]
+		self.n_try = cond_top[2]
+		self.n_sampling = cond_top[3]
+		self.f_pool = cond_top[4]
+		#
+		self.multi_nw = target_cond[0]
+		#
+		self.hist_bins = hist_bins
+
 	#########################################################
 	# トポロジーの異なるネットワークを探索して、代数的連結性の分布関数を策定し、ネットワークトポロジーの配列辞書を決める。
 	def top_search(self):
-		self.init_dic = self.base_top_list[0]
-		self.n_jp = self.base_top_list[3]
-		#
-		self.pre_try = self.cond_top[0] 
-		self.pre_sampling = self.cond_top[1]
-		self.n_try = self.cond_top[2]
-		self.n_sampling = self.cond_top[3]
-		self.f_pool = self.cond_top[4]
-		#
 		target_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
 		target_dir += str(self.n_try) + "_trials_" + str(self.n_sampling) + "_sampling"
 		os.makedirs(target_dir, exist_ok = True)
@@ -714,16 +346,28 @@ class SelectSet:
 			lap_mat[topl_dic[i][1], topl_dic[i][1]] += 1
 		return lap_mat
 
+
+################################################################################
+## トポロジーの異なるネットワークを探索して、代数的連結性の分布関数を策定
+################################################################################
+class Select:
+	def __init__(self, read_file_path, hist_bins, target_cond):
+		self.read_file_path = read_file_path
+		self.hist_bins = hist_bins
+
+		self.multi_nw = target_cond[0]
+
+	##########################
 	#########################################################
 	# 過去の探索データを使って、代数的連結性の分布関数を選択
 	def top_select(self):
-		with open(os.path.join(self.restart, 'init.pickle'), mode = 'rb') as f:
+		with open(os.path.join(self.read_file_path, 'init.pickle'), mode = 'rb') as f:
 			candidate_list = pickle.load(f)
 		print("##################################################")
 		print("Reloaded Candidates = ", len(candidate_list))
 		print("##################################################")
 
-		return candidate_list, self.restart
+		return candidate_list, self.read_file_path
 
 
 	#####################################################################
@@ -735,8 +379,11 @@ class SelectSet:
 
 		# ヒストグラムを作成
 		histdata = list(np.array(candidate_list)[:,0])
-		cond = ["", histdata, self.n_hist, "True", ['Arg. Con.', 'Freq.']]
-		x, val = self.make_hist_all(cond, target_dir)
+		# cond_list = [base_name, data_list, bins, normalize, Legend, option]
+		cond = ["", histdata, self.hist_bins, "True", ['Arg. Con.', 'Freq.'], 'box']
+		mg = MakeHist(cond, target_dir)
+		# x, val = MakeGraph.make_histgram(list(np.array(candidate_list)[:,0]), self.hist_bins)
+		x, val = mg.make_hist_all()
 
 		# 最頻値のレンジを決める
 		val_range = self.find_range(x, val)
@@ -753,7 +400,7 @@ class SelectSet:
 				val_list.append(selected_list[0])
 				data_list.append(selected_list[1])
 				count += 1
-			if len(val_list) == self.multi:
+			if len(val_list) == self.multi_nw:
 				with open(os.path.join(target_dir, 'selected_val.dat'), 'w') as f:
 					f.write("Selected arg. con.\n\n")
 					for i in val_list:
@@ -761,7 +408,7 @@ class SelectSet:
 						f.write("arg. con. = " + str(round(i, 4)) + '\n')
 				return data_list
 		#
-		print("No effective list was found for multi numbers of", self.multi, "!  Try again!!")
+		print("No effective list was found for multi numbers of", self.multi_nw, "!  Try again!!")
 		sys.exit()
 
 	#######################
@@ -770,13 +417,14 @@ class SelectSet:
 		index = np.where(val == max(val))[0][0]
 		f_range = 0
 		value = 0
-		while value < self.multi:
+		while value < self.multi_nw:
 			value = 0
 			f_range += 1
 			for i in range(2*f_range + 1):
 				if val[index - f_range + i] != 0:
 					value += 1
 		val_range = [ x[index - f_range], x[index + f_range] ]
+		#
 		print("##################################################")
 		print("Most frequent range = ", round(val_range[0], 5), " to ", round(val_range[1], 5))
 		key = input("OK? input y or n: ")
@@ -790,90 +438,29 @@ class SelectSet:
 			val_range = list([low, high])
 		return val_range
 
-	###########################
-	# ヒストグラムのグラフの作成
-	def make_hist_all(self, cond_list, target_dir):
-		self.base = cond_list[0]
-		self.list = cond_list[1]
-		self.bins = cond_list[2]
-		self.norm = cond_list[3]
-		self.leg = cond_list[4]
 
-		self.f_dat = "nw_hist.dat"
-		self.f_plt = "make_hist.plt"
-		self.f_png = "histgram.png"
-		# ヒストグラムのデータ作成
-		bin_width, hist_data, val, x = self.make_hist_data()
-		# ヒストグラムのデータを書き出し 
-		self.write_data(hist_data, target_dir)
-		# グラフを作成
-		self.make_graph(bin_width, target_dir)
-		return x, val
 
-	# ヒストグラムのデータ作成
-	def make_hist_data(self):
-		# ヒストグラムを作成
-		weights = np.ones(len(self.list))/float(len(self.list))
-		if self.norm:
-			val, x = np.histogram(self.list, bins=self.bins, weights= weights)
-		else:
-			val, x = np.histogram(self.list, bins=self.bins)
-		# グラフ用にデータを変更
-		bin_width = (x[1]-x[0])
-		mod_x = (x + bin_width/2)[:-1]
-		hist_data = np.stack([mod_x, val], axis = 1)
-		return bin_width, hist_data, val, x
+################################################################################
+# ターゲットとなるネットワーク全体の辞書を決める。
+################################################################################
+class SetUp:
+	def __init__(self, top_dic_list, base_top_list, n_segments, n_sc=0):
+		self.top_dic_list = top_dic_list
+		#
+		self.jp_xyz_dic = base_top_list[1]
+		self.atom_jp = base_top_list[2]
+		self.vector_dic = base_top_list[4]
+		#
+		self.n_segments = n_segments
+		self.n_sc = n_sc
 
-	# ヒストグラムのデータを書き出し 
-	def write_data(self, hist_data, target_dir):
-		os.makedirs(target_dir, exist_ok=True)
-		with open(os.path.join(target_dir, self.f_dat), 'w') as f:
-			f.write("# Histgram data:\n\n")
-			for line in hist_data:
-				f.write(str(line[0]) + '\t' + str(line[1])  + '\n')
-		return
-
-	# グラフを作成
-	def make_graph(self, bin_width, target_dir):
-		self.make_script(bin_width, target_dir)
-		cwd = os.getcwd()
-		os.chdir(target_dir)
-		if platform.system() == "Windows":
-			subprocess.call(self.f_plt, shell=True)
-		elif platform.system() == "Linux":
-			subprocess.call('gnuplot ' + self.f_plt, shell=True)
-		os.chdir(cwd)
-		return
-		
-	# 必要なスクリプトを作成
-	def make_script(self, bin_width, target_dir):
-		script = 'set term pngcairo font "Arial,14" \nset colorsequence classic \n'
-		script += '# \ndata = "' + self.f_dat + '" \nset output "' + self.f_png + ' "\n'
-		script += '#\nset size square\n# set xrange [0:1.0]\n#set yrange [0:100]\n'
-		script += '#\nset xlabel "' + self.leg[0] + '"\nset ylabel "' + self.leg[1] + '"\n\n'
-		script += 'set style fill solid 0.5\nset boxwidth ' + str(bin_width) + '\n'
-		script += '#\nplot data w boxes noti'
-		print("OK")
-		with open(os.path.join(target_dir, self.f_plt), 'w') as f:
-			# script = self.script_content(bin_width)
-			f.write(script)
-		return
-		
-
-	################################################################################
-	# ターゲットとなるネットワーク全体の辞書を決める。
-	################################################################################
-	def make_data_dic(self, top_dic_list):
-		self.jp_xyz_dic = self.base_top_list[1]
-		self.atom_jp = self.base_top_list[2]
-		self.vector_dic = self.base_top_list[4]
-
+	def make_data_dic(self):
 		calcd_data_dic_list = []
-		for str_top_dic in top_dic_list:
+		for str_top_dic in self.top_dic_list:
 			atom_all = []
 			pos_all = {}
 			#
-			strand_xyz, bond_all, atom_strand, angle_all = self.make_strands(str_top_dic)
+			strand_xyz, bond_all, atom_strand, angle_all = self.set_strands(str_top_dic)
 			atom_all.extend(self.atom_jp)
 			atom_all.extend(atom_strand)
 			pos_all.update(self.jp_xyz_dic)
@@ -884,7 +471,7 @@ class SelectSet:
 		return calcd_data_dic_list
 
 	# 一本のストランド中の各アトムのxyzリストとボンドリストを作成
-	def make_strands(self, str_top_dic):
+	def set_strands(self, str_top_dic):
 		strand_xyz = {}
 		bond_all = {}
 		atom_strand = []
@@ -899,7 +486,7 @@ class SelectSet:
 			vector = self.vector_dic[strand_id]
 			start_xyz = np.array(self.jp_xyz_dic[start_id])
 			end_xyz = np.array(self.jp_xyz_dic[end_id])
-			tmp_xyz, tmp_bond, tmp_atom_st, tmp_angle, seq_atom_id, bond_id = self.calc_single_strand_rnd(start_id, end_id, vector, start_xyz, end_xyz, seq_atom_id, bond_id)
+			tmp_xyz, tmp_bond, tmp_atom_st, tmp_angle, seq_atom_id, bond_id = self.calc_single_strand(start_id, end_id, vector, start_xyz, end_xyz, seq_atom_id, bond_id)
 			#
 			strand_xyz.update(tmp_xyz)
 			bond_all.update(tmp_bond)
@@ -908,7 +495,7 @@ class SelectSet:
 		return strand_xyz, bond_all, atom_strand, angle_all
 
 	# 一本のストランド中の各アトムのxyzリストとボンドリストを作成
-	def calc_single_strand_rnd(self, start_id, end_id, vector, start_xyz, end_xyz, seq_atom_id, bond_id):
+	def calc_single_strand(self, start_id, end_id, vector, start_xyz, end_xyz, seq_atom_id, bond_id):
 		tmp_xyz = {}
 		tmp_bond = {}
 		tmp_angle = []
@@ -958,7 +545,9 @@ class SelectSet:
 		tmp_bond[bond_id] = tuple([bond, [s_id, e_id]])
 		tmp_angle.append(e_id)
 		bond_id += 1
+
 		return tmp_xyz, tmp_bond, tmp_atom_st, tmp_angle, seq_atom_id, bond_id
+
 	#
 	def find_ortho_vec(self, list):
 		vec = np.array(list).reshape(-1,1)
@@ -975,3 +564,79 @@ class SelectSet:
 		return ortho_vec
 
 
+##################################################################################
+class MakeHist:
+	def __init__(self, cond_list, target_name):
+		# cond_list = [base_name, data_list, bins, normalize, Legend, option]
+		self.dir = target_name
+		#
+		self.base = cond_list[0]
+		self.list = cond_list[1]
+		self.bins = cond_list[2]
+		self.norm = cond_list[3]
+		self.leg = cond_list[4]
+		self.option = cond_list[5]
+		#
+		self.f_dat = "nw_hist.dat"
+		self.f_plt = "make_hist.plt"
+		self.f_png = "histgram.png"
+
+	# ヒストグラムのグラフの作成
+	def make_hist_all(self):
+		# ヒストグラムのデータ作成
+		bin_width, hist_data, val, x = self.make_hist_data()
+		# ヒストグラムのデータを書き出し 
+		self.write_data(hist_data, bin_width)
+		# グラフを作成
+		self.make_graph(bin_width)
+		return x, val
+
+	# ヒストグラムのデータ作成
+	def make_hist_data(self):
+		# ヒストグラムを作成
+		weights = np.ones(len(self.list))/float(len(self.list))
+		if self.norm:
+			val, x = np.histogram(self.list, bins=self.bins, weights= weights)
+		else:
+			val, x = np.histogram(self.list, bins=self.bins)
+		# グラフ用にデータを変更
+		bin_width = (x[1]-x[0])
+		mod_x = (x + bin_width/2)[:-1]
+		hist_data = np.stack([mod_x, val], axis = 1)
+		return bin_width, hist_data, val, x
+
+	# ヒストグラムのデータを書き出し 
+	def write_data(self, hist_data, bin_width):
+		os.makedirs(self.dir, exist_ok=True)
+		with open(os.path.join(self.dir, self.f_dat), 'w') as f:
+			f.write("# Histgram data:\n\n")
+			for line in hist_data:
+				f.write(str(line[0]) + '\t' + str(line[1])  + '\n')
+		return
+
+	# グラフを作成
+	def make_graph(self, bin_width):
+		self.make_script(bin_width)
+		cwd = os.getcwd()
+		os.chdir(self.dir)
+		if platform.system() == "Windows":
+			subprocess.call(self.f_plt, shell=True)
+		elif platform.system() == "Linux":
+			subprocess.call('gnuplot ' + self.f_plt, shell=True)
+		os.chdir(cwd)
+		return
+		
+	# 必要なスクリプトを作成
+	def make_script(self, bin_width):
+		script = 'set term pngcairo font "Arial,14" \nset colorsequence classic \n'
+		script += '# \ndata = "' + self.f_dat + '" \nset output "' + self.f_png + ' "\n'
+		script += '#\nset size square\n# set xrange [0:1.0]\n#set yrange [0:100]\n'
+		script += '#\nset xlabel "' + self.leg[0] + '"\nset ylabel "' + self.leg[1] + '"\n\n'
+		script += 'set style fill solid 0.5\nset boxwidth ' + str(bin_width) + '\n'
+		script += '#\nplot data w boxes noti'
+		print("OK")
+		with open(os.path.join(self.dir, self.f_plt), 'w') as f:
+			# script = self.script_content(bin_width)
+			f.write(script)
+		return
+		

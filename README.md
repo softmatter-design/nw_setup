@@ -6,6 +6,7 @@ This repository is python package for setup of NetWork simulation using Cognac; 
 このリポジトリは、統合シミュレータである OCTA における MD シミュレータ Cognac を用いて、ネットワークポリマーのシミュレーションを行うための UDF を作成するパイソンパッケージです。
 
 ## Requirement
+This package is made and checked on python3.
 
 ## Usage
 
