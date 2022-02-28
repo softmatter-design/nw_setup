@@ -12,15 +12,15 @@ class SetUpUDF:
 	def __init__(self, basic_cond, sim_cond, target_dir):
 		#
 		self.ver_cognac = basic_cond[0]
-		self.blank_udf = basic_cond[1]
+		# self.blank_udf = basic_cond[1]
 		self.base_udf = basic_cond[2]
 		self.core = ' -n ' + str(basic_cond[3])
 		# 
 		self.sim_type = sim_cond[0]
-		self.multi_init = sim_cond[1]
-		self.target_density = sim_cond[2]
+		# self.multi_init = sim_cond[1]
+		self.density = sim_cond[2]
 		self.nv = sim_cond[3]
-		self.expand = sim_cond[4]
+		# self.expand = sim_cond[4]
 		self.step_press = sim_cond[5]
 		self.rfc = sim_cond[6]
 		self.equilib_repeat = sim_cond[7]
@@ -66,18 +66,14 @@ class SetUpUDF:
 			batch = self.homo_kg(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("chain")
-		elif self.sim_type == "Entangled" or self.sim_type == "Multi_entangled" or self.sim_type == "Gel_entangled" or self.sim_type == "Gel_concd_entangled":
-			batch = self.kg_calc(batch)
+		elif self.sim_type == "Entangled":
+			batch = self.entangle_calc(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("strand")
-		elif self.sim_type == "NPT" or self.sim_type == "Multi" or self.sim_type == "Gel" or self.sim_type == "Gel_concd":
+		elif self.sim_type == "NO_Entangled":
 			batch = self.npt_calc(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("strand")
-		# elif self.sim_type == "Gel" or self.sim_type == "Gel_concd":
-		# 	batch = self.npt_gel(batch)
-		# 	# 評価用のパイソンスクリプトを作成
-		# 	self.evaluate_setup("strand")
 
 		#####################
 		# バッチファイルを作成
@@ -99,10 +95,6 @@ class SetUpUDF:
 		script += '################################\n'
 		# script += 'ec = EvaluateChain.EvaluateAll()\n'
 		script += 'ec.evaluate_all()\n\n'
-		# elif target == "strand":
-		# 	script += 'from evaluation import EvaluateStrand\n'
-		# 	script += '################################\n'
-		# 	script += 'EvaluateStrand.evaluate_all()\n\n'
 		#
 		f_script = os.path.join(self.target_dir, self.f_eval_py)
 		with open(f_script, 'w') as f:
@@ -192,7 +184,7 @@ class SetUpUDF:
 
 	######################################################################
 	# KG鎖の計算
-	def kg_calc(self, batch):
+	def entangle_calc(self, batch):
 		# Force Capped LJ によりステップワイズに初期化
 		r = 1.1
 		batch = self.make_title(batch, "Calculating-Init")
@@ -252,7 +244,7 @@ class SetUpUDF:
 	# NPT 条件で、設定密度まで圧縮
 	def npt_calc(self, batch):
 		# NPTの設定
-		pres = 0.1
+		pres = 0.05
 		batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
 		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "_uin.udf"]
 		time = [0.001, 20000, 200]
@@ -271,10 +263,19 @@ class SetUpUDF:
 			self.npt_setup(template, pre, present_udf, time, pres)
 			pre = read_udf
 			template = present_udf
+		# KG 鎖への遷移
+		time = [0.01, 1000, 100]
+		batch = self.make_title(batch, "Calculating-pre_KG")
+		fn_ext = ['PreKG_', "_uin.udf"]
+		f_eval = 1
+		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		self.pre_kg_setup(template, pre, present_udf, time)
+		pre = read_udf
+		template = present_udf
 		# KG 鎖に設定
 		time = [0.01, 100000, 1000]
 		batch = self.make_title(batch, "Calculating-KG")
-		fn_ext = ['Setup_', "_uin.udf"]
+		fn_ext = ['SetupKG_', "_uin.udf"]
 		f_eval = 1
 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
 		self.kg_setup(template, pre, present_udf, time)
@@ -291,63 +292,6 @@ class SetUpUDF:
 			self.eq_setup(template, pre, present_udf, time)
 			pre = read_udf
 			template = present_udf
-		# # グリーン久保
-		# repeat = 3
-		# time = [0.01, 2000000, 100000]
-		# for i in range(repeat):
-		# 	# 平衡化
-		# 	batch = self.make_title(batch, "Calculating-GK_" + str(i))
-		# 	fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
-		#	f_eval = 1
-		# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-		# 	self.greenkubo_setup(template, pre, present_udf, time)
-		# 	pre = read_udf
-		# 	template = present_udf
-		return batch
-
-	###########################################
-	# NPT 条件で、設定密度まで圧縮（ゲルの場合は圧縮をきつく）
-	# def npt_gel(self, batch):
-	# 	# NPTの設定
-	# 	pres = 0.1
-	# 	batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
-	# 	fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "_uin.udf"]
-	# 	time = [0.001, 20000, 200]
-	# 	f_eval = 0
-	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-	# 	self.npt_setup(self.base_udf, '', present_udf, time, pres)
-	# 	pre = read_udf
-	# 	template = present_udf
-	# 	# ステップワイズに圧力増加
-	# 	for pres in self.step_press:
-	# 		batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
-	# 		fn_ext = ['Compress_pres_' + str(pres).replace('.', '_') + '_', "_uin.udf"]
-	# 		time = [0.01, 100000, 1000]
-	# 		f_eval = 1
-	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-	# 		self.npt_setup(template, pre, present_udf, time, pres)
-	# 		pre = read_udf
-	# 		template = present_udf
-	# 	# KG 鎖に設定
-	# 	time = [0.01, 100000, 1000]
-	# 	batch = self.make_title(batch, "Calculating-KG")
-	# 	fn_ext = ['Setup_', "_uin.udf"]
-	# 	f_eval = 1
-	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-	# 	self.kg_setup(template, pre, present_udf, time)
-	# 	pre = read_udf
-	# 	template = present_udf
-	# 	# 平衡化計算
-	# 	time = [0.01, 200000, 1000]
-	# 	for i in range(5):
-	# 		# 平衡化
-	# 		batch = self.make_title(batch, "Calculating-Eq_" + str(i))
-	# 		fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
-	# 		f_eval = 1
-	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-	# 		self.eq_setup(template, pre, present_udf, time)
-	# 		pre = read_udf
-	# 		template = present_udf
 		# # グリーン久保
 		# repeat = 3
 		# time = [0.01, 2000000, 100000]
@@ -474,6 +418,73 @@ class SetUpUDF:
 
 	###############################################
 	# ボンドをFENE、ノンボンドをLJとしてKG鎖を設定
+	def pre_kg_setup(self, template, read_udf, present_udf, time):
+		u = UDFManager(os.path.join(self.target_dir, template))
+		u.jump(-1)
+		#--- Simulation_Conditions ---
+		# Dynamics_Conditions
+		p = 'Simulation_Conditions.Dynamics_Conditions.'
+		u.put(time[0],  p+'Time.delta_T')
+		u.put(time[1],  p+'Time.Total_Steps')
+		u.put(time[2],  p+'Time.Output_Interval_Steps')
+		u.put(1.0, 		p + 'Temperature.Temperature')
+		u.put(0., 		p + 'Pressure_Stress.Pressure')
+		# Solver
+		p = 'Simulation_Conditions.Solver.'
+		u.put('Dynamics', 			p + 'Solver_Type')
+		u.put('NVT_Kremer_Grest', 	p + 'Dynamics.Dynamics_Algorithm')
+		u.put(0.5, 					p + 'Dynamics.NVT_Kremer_Grest.Friction')
+		# Calc_Potential_Flags
+		p = 'Simulation_Conditions.Calc_Potential_Flags.'
+		u.put(1, p + 'Bond')
+		u.put(0, p + 'Angle')
+		u.put(1, p + 'Non_Bonding_Interchain')
+		u.put(1, p + 'Non_Bonding_1_3')
+		u.put(1, p + 'Non_Bonding_1_4')
+		u.put(1, p + 'Non_Bonding_Intrachain')
+		#--- Initial_Structure ---
+		# Initial_Unit_Cell
+		p = 'Initial_Structure.Initial_Unit_Cell.'
+		u.put(self.density , p + 'Density')
+		u.put([0, 0, 0, 90.0, 90.0, 90.0], p + 'Cell_Size')
+		# Generate_Method
+		p = 'Initial_Structure.Generate_Method.'
+		u.put('Restart', p+'Method')
+		u.put([read_udf, -1, 0, 0], p+'Restart')
+		p = 'Initial_Structure.Relaxation.'
+		u.put(1, p + 'Relaxation')
+		#--- Simulation_Conditions ---
+		# Bond
+		for i, bondname in enumerate(self.bond_name):
+			p = 'Molecular_Attributes.Bond_Potential[].'
+			u.put(bondname, 	p + 'Name', [i])
+			u.put('Harmonic', 	p + 'Potential_Type', [i])
+			u.put(0.97, 		p + 'R0', [i])
+			u.put(1000, 		p + 'Harmonic.K', [i])
+		# Site
+		for i, sitename in enumerate(self.site_name):
+			p = 'Molecular_Attributes.Interaction_Site_Type[].'
+			u.put(sitename, 	p + 'Name', [i])
+			u.put(1, 			p + 'Num_of_Atoms', [i])
+			u.put(1.0, 			p + 'Range', [i])
+		#--- Pair_Interaction[] ---
+		for i, pairname in enumerate(self.pair_name):
+			p = 'Interactions.Pair_Interaction[].'
+			u.put(pairname,   					p + 'Name', [i])
+			u.put('Lennard_Jones', 				p + 'Potential_Type', [i])
+			u.put(self.site_pair_name[i][0],	p + 'Site1_Name', [i])
+			u.put(self.site_pair_name[i][1],	p + 'Site2_Name', [i])
+			u.put(2**(1/6),						p + 'Cutoff', [i])
+			u.put(1.0,							p + 'Scale_1_4_Pair', [i])
+			u.put(1.0,							p + 'Lennard_Jones.sigma', [i])
+			u.put(1.0,							p + 'Lennard_Jones.epsilon', [i])
+		#--- Write UDF ---
+		u.write(os.path.join(self.target_dir, present_udf))
+		return
+
+
+	###############################################
+	# ボンドをFENE、ノンボンドをLJとしてKG鎖を設定
 	def kg_setup(self, template, read_udf, present_udf, time):
 		u = UDFManager(os.path.join(self.target_dir, template))
 		u.jump(-1)
@@ -501,7 +512,7 @@ class SetUpUDF:
 		#--- Initial_Structure ---
 		# Initial_Unit_Cell
 		p = 'Initial_Structure.Initial_Unit_Cell.'
-		u.put(0.85, p + 'Density')
+		u.put(self.density , p + 'Density')
 		u.put([0, 0, 0, 90.0, 90.0, 90.0], p + 'Cell_Size')
 		# Generate_Method
 		p = 'Initial_Structure.Generate_Method.'

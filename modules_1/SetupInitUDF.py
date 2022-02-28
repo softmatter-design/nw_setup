@@ -69,7 +69,7 @@ class MakeInitUDF:
 						["site_Solvent", "site_End"],
 						["site_Solvent", "site_Strand"],
 						]
-		# [R0, K]
+		# Set [R0, K]
 		self.harmonic = [0.97, 1000]
 		# [Potential_Type, theta0, K]		
 		self.angle = ['Theta2', 74, 10.0]
@@ -119,11 +119,11 @@ class MakeInitUDF:
 		# Solver
 		p = 'Simulation_Conditions.Solver.'
 		u.put('Dynamics', p + 'Solver_Type')
-		if self.sim_type == "NPT" or self.sim_type == 'Multi' or self.sim_type == "Gel" or self.sim_type == "Gel_concd":
+		if self.sim_type == "NO_Entangled":
 			u.put('NPT_Andersen_Kremer_Grest', 	p + 'Dynamics.Dynamics_Algorithm')
 			u.put(self.total_atom, 				p + 'Dynamics.NPT_Andersen_Kremer_Grest.Cell_Mass')
 			u.put(0.5, 							p + 'Dynamics.NPT_Andersen_Kremer_Grest.Friction')
-		else:
+		elif self.sim_type == "Entangled":
 			u.put('NVT_Kremer_Grest', 			p + 'Dynamics.Dynamics_Algorithm')
 			u.put(0.5, 							p + 'Dynamics.NVT_Kremer_Grest.Friction')
 		# Boundary_Conditions
@@ -166,7 +166,7 @@ class MakeInitUDF:
 		#--- Initial_Structure ---
 		# Initial_Unit_Cell
 		p = 'Initial_Structure.Initial_Unit_Cell.'
-		if self.sim_type == "NPT" or self.sim_type == 'Multi' or self.sim_type == "Gel" or self.sim_type == "Gel_concd":
+		if self.sim_type == "NO_Entangled":
 			p = 'Initial_Structure.Initial_Unit_Cell.'
 			u.put(0, p + 'Density')
 			u.put([self.system_size*self.expand, self.system_size*self.expand, self.system_size*self.expand, 90.0, 90.0, 90.0], p + 'Cell_Size')
@@ -294,7 +294,7 @@ class MakeInitUDF:
 			shift_vec = self.expand*count*shift*np.array(np.random.rand(3))
 			pos_all = self.calcd_data_dic[mul]["pos_all"]
 			for i in range(len(pos_all)):
-				if self.sim_type == "NPT" or self.sim_type == 'Multi' or self.sim_type == "Gel"  or self.sim_type == "Gel_concd":
+				if self.sim_type == "NO_Entangled":
 					mod_pos = self.expand*self.unit_cell*np.array(list(pos_all[i])) + self.expand*shift_vec
 				else:
 					mod_pos = self.unit_cell*np.array(list(pos_all[i])) + shift_vec
@@ -303,24 +303,6 @@ class MakeInitUDF:
 				# tmp_set.append(list(mod_pos))
 				self.totalatom +=1
 			count+=1
-	# # ソルベントのアトムをセット
-	# 	if self.n_solvent != 0:
-	# 		sol_pos = [self.expand*n*self.system_size for n in np.random.random_sample((self.n_solvent,3))]
-	# 		for mol in range(self.n_solvent):
-	# 			u.put('Solvent', p + 'Mol_Name', [count])
-	# 			atom_id += 1
-	# 			# atom
-	# 			u.put(atom_id,				pa + 'Atom_ID', [count, 0])
-	# 			u.put("Solvent", 			pa + 'Atom_Name', [count, 0])
-	# 			u.put("Solvent", 			pa + 'Atom_Type_Name', [count, 0])
-	# 			u.put(0, 					pa + 'Chirality', [count, 0])
-	# 			u.put(1, 					pa + 'Main_Chain', [count, 0])
-	# 			# interaction site
-	# 			u.put("site_Solvent", 		pi + 'Type_Name', [count, 0])
-	# 			u.put(0, 					pi + 'atom[]', [count, 0, 0])
-	# 			# position
-	# 			u.put(list(sol_pos[mol]), sp, [count, 0])
-	# 			count += 1
 
 		#--- Write UDF ---
 		u.write(target_udf)

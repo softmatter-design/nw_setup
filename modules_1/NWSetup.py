@@ -13,8 +13,6 @@ from multiprocessing import Pool
 ################################################################################
 class SelectSet:
 	def __init__(self, nw_cond, target_cond, rnd_cond):
-		# self.nw_cond = nw_cond
-
 		self.nw_model = nw_cond[0]
 		self.strand = nw_cond[1]
 		self.n_strand = nw_cond[2]

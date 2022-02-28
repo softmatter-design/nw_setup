@@ -16,7 +16,6 @@ def setupcondition():
 
 	return basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir
 	
-
 ###########################################
 # check 'calc_condition.udf' and make it.
 def findudf():
@@ -28,6 +27,7 @@ def findudf():
 		makenewudf()
 		input('Press ENTER to continue...')
 	return
+
 ###########################################
 # make new udf when not found.
 def makenewudf():
@@ -114,7 +114,7 @@ class ReadCondSetup:
 		dic={'y':True,'yes':True,'q':False,'quit':False}
 		while True:
 			# read udf
-			basic_cond, nw_cond, sim_cond, rnd_cond = self.readconditionudf()
+			basic_cond, rnd_cond = self.readconditionudf()
 			# select
 			target_cond = self.calc_conditions()
 			print('Change UDF: type [r]eload')
@@ -128,6 +128,8 @@ class ReadCondSetup:
 			print("\n\nSetting UP progress !!")
 			# 計算用のディレクトリーを作成
 			target_dir = self.make_dir()
+			nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc, self.l_bond, self.c_n]
+			sim_cond = [self.topology, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.step_rfc, self.equilib_repeat, self.equilib_time]
 			return basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir
 		else:
 			sys.exit("##### \nQuit !!")
@@ -239,112 +241,113 @@ class ReadCondSetup:
 		else:
 			self.c_n = 1.75
 		#########################################################################################
-		nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc, self.l_bond, self.c_n]
-		sim_cond = [self.topology, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.step_rfc, self.equilib_repeat, self.equilib_time]
+		
 		rnd_cond = [restart, cond_top, n_hist]
 
-		return basic_cond, nw_cond, sim_cond, rnd_cond
+		return basic_cond, rnd_cond
 
 	############################################
 	#-----ネットワークポリマーの諸量を計算
 	def calc_conditions(self):
 		## 計算システムの諸量を計算して、出力
-		e2e, n_chains, n_beads_unit, org_unitcell = self.set_length()
-		target_cond = self.init_calc(e2e, n_chains, n_beads_unit, org_unitcell)
+		n_chains, n_beads_unit = self.set_length()
+		target_cond = self.init_calc(n_chains, n_beads_unit)
 
 		return target_cond
 
 	#####################
 	#
 	def set_length(self):
-		e2e = self.l_bond*((self.n_segments + 1)*self.c_n)**0.5					# 理想鎖状態での末端間距離
+		self.e2e = self.l_bond*((self.n_segments + 1)*self.c_n)**0.5					# 理想鎖状態での末端間距離
 
 		if self.nw_model == "Regular_NW":
 			if self.strand == "3_Chain_S":
 				n_chains = 12						        					# サブチェインの本数
 				n_beads_unit = 8 + self.n_segments*(1 + self.n_sc)*n_chains		# ユニットセル当たりの粒子数
-				org_unitcell = (2*2**0.5)*e2e				        			# 理想鎖状態でのユニットセル長
+				self.org_unitcell = (2*2**0.5)*self.e2e				        			# 理想鎖状態でのユニットセル長
 			elif self.strand == "3_Chain_D":
 				n_chains = 24						       
 				n_beads_unit = 16 + self.n_segments*(1 + self.n_sc)*n_chains	
-				org_unitcell = (2*2**0.5)*e2e		
+				self.org_unitcell = (2*2**0.5)*self.e2e		
 			elif self.strand == "4_Chain":
 				n_chains = 16						      
 				n_beads_unit = 8 + self.n_segments*(1 + self.n_sc)*n_chains	
-				org_unitcell = (4*3**0.5)*e2e/3			 
+				self.org_unitcell = (4*3**0.5)*self.e2e/3			 
 			elif self.strand == "6_Chain":
 				n_chains = 3						  
 				n_beads_unit = 1 + self.n_segments*(1 + self.n_sc)*n_chains		
-				org_unitcell = e2e						      
+				self.org_unitcell = self.e2e						      
 			elif self.strand == "8_Chain":
 				n_chains = 8						   
 				n_beads_unit = 2 + self.n_segments*(1 + self.n_sc)*n_chains   
-				org_unitcell = (2*3**0.5)*e2e/3	
+				self.org_unitcell = (2*3**0.5)*self.e2e/3	
 
 		elif self.nw_model == "Random_NW":
 			n_chains = self.n_strand
 			n_beads_unit = 2 + self.n_segments*(1 + self.n_sc)*n_chains
-			org_unitcell = (2*3**0.5)*e2e/3	
+			self.org_unitcell = (2*3**0.5)*self.e2e/3	
 
-		return e2e, n_chains, n_beads_unit, org_unitcell
+		return n_chains, n_beads_unit
 
 	###############################################################
-	def init_calc(self, e2e, n_chains, n_beads_unit, org_unitcell):
+	def init_calc(self, n_chains, n_beads_unit):
 		calc_flag = 0
 		err_dens = 0
 		if self.multi == 0:
 			calc_flag = 1
 			if self.shrinkage == 1.:
-				# org_system = org_unitcell*self.n_cell							# e2e から決めたシステムサイズ
-				calcd_multi = round(self.density*org_unitcell**3/n_beads_unit)	# 密度を設定値とした場合に必要な多重度
-				calcd_density = n_beads_unit*calcd_multi/org_unitcell**3		# 上記の多重度での密度
+				calcd_multi = round(self.density*self.org_unitcell**3/n_beads_unit)	# 密度を設定値とした場合に必要な多重度
+				calcd_density = n_beads_unit*calcd_multi/self.org_unitcell**3		# 上記の多重度での密度
 				err_dens = round((calcd_density/self.density - 1)*100, 2) 		# 設定密度との誤差(%)
 				single_net_atom = int(n_beads_unit*self.n_cell**3.)	    		# 一つのネットワーク中の粒子数
-				total_net_atom = int(calcd_multi*single_net_atom)    			# 全システム中のネットワーク粒子数
+				self.total_net_atom = int(calcd_multi*single_net_atom)    			# 全システム中のネットワーク粒子数
 				mod_unitcell = (calcd_multi*n_beads_unit/self.density)**(1/3)					# その際のシステムサイズ
-				self.shrinkage = mod_unitcell/org_unitcell								# 収縮比
-				system = mod_unitcell*self.n_cell
-				vol = system**3									    			# システム体積
+				self.shrinkage = mod_unitcell/self.org_unitcell								# 収縮比
+				self.system = mod_unitcell*self.n_cell
+				# vol = self.system**3									    			# システム体積
 				print(self.n_cell)
 				self.multi = calcd_multi
-				mod_e2e = self.shrinkage*e2e											# 収縮後の末端間距離
+				mod_e2e = self.shrinkage*self.e2e											# 収縮後の末端間距離
 				unit_cell = mod_unitcell
+				self.nu = n_chains*self.multi/unit_cell**3
 			elif self.shrinkage != 1.:
 				sys.exit(u"\n############################################## \n多重度を自動計算にした場合、収縮条件は選択できません\n条件設定を見直してください。\n##############################################\n")
 		elif self.multi != 0:
 			if self.shrinkage == 1.:
 				err_dens = 0.
-				system = org_unitcell*self.n_cell						# e2e から決めたシステムサイズ
-				self.density = n_beads_unit*self.multi/org_unitcell**3	# 多重度での密度
+				self.system = self.org_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+				self.density = n_beads_unit*self.multi/self.org_unitcell**3	# 多重度での密度
 				single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
-				total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
-				vol = system**3									    	# システム体積
-				mod_e2e = e2e											# 収縮後の末端間距離
-				unit_cell = org_unitcell
+				self.total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+				# vol = self.system**3									    	# システム体積
+				mod_e2e = self.e2e											# 収縮後の末端間距離
+				unit_cell = self.org_unitcell
+				self.nu = n_chains*self.multi/unit_cell**3
 			elif self.shrinkage != 1.:
 				if self.density == 0.:
 					err_dens = 0.
-					mod_unitcell = org_unitcell*self.shrinkage
-					system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+					mod_unitcell = self.org_unitcell*self.shrinkage
+					self.system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
 					self.density = n_beads_unit*self.multi/mod_unitcell**3	# 多重度での密度
 					single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
-					total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
-					vol = system**3									    	# システム体積
-					mod_e2e = self.shrinkage*e2e		
+					self.total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+					# vol = system**3									    	# システム体積
+					mod_e2e = self.shrinkage*self.e2e		
 					unit_cell = mod_unitcell									# 収縮後の末端間距離
+					self.nu = n_chains*self.multi/unit_cell**3
 				elif self.density > 0.:
 					err_dens = 0.
 					mod_unitcell = (n_beads_unit*self.multi/self.density)**(1/3)
-					self.shrinkage = mod_unitcell/org_unitcell
+					self.shrinkage = mod_unitcell/self.org_unitcell
 					single_net_atom = int(n_beads_unit*self.n_cell**3.)	    # 一つのネットワーク中の粒子数
-					total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
-					system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
-					vol = system**3									    	# システム体積
-					mod_e2e = self.shrinkage*e2e											# 収縮後の末端間距離
+					self.total_net_atom = int(self.multi*single_net_atom)    	# 全システム中のネットワーク粒子数
+					self.system = mod_unitcell*self.n_cell						# e2e から決めたシステムサイズ
+					# vol = self.system**3									    	# システム体積
+					mod_e2e = self.shrinkage*self.e2e											# 収縮後の末端間距離
 					unit_cell = mod_unitcell
+					self.nu = n_chains*self.multi/unit_cell**3
 		else:
 			sys.exit("Something Wrong!!")
-		self.nu = n_chains/vol
 		#
 		text = "#########################################" + "\n"
 		text += "ネットワークトポロジー\t\t" + str(self.nw_model) + "\n"
@@ -352,8 +355,8 @@ class ReadCondSetup:
 		text += "#########################################" + "\n"
 		text += "ストランド中のセグメント数:\t" + str(self.n_segments) + "\n"
 		text += "特性比:\t\t\t\t" + str(round(self.c_n, 2)) + "\n"
-		text += "初期の末端間距離:\t\t" + str(round(e2e, 4)) + "\n"
-		text += "当初の単位ユニット:\t\t" + str(round(org_unitcell, 4)) + "\n"
+		text += "初期の末端間距離:\t\t" + str(round(self.e2e, 4)) + "\n"
+		text += "当初の単位ユニット:\t\t" + str(round(self.org_unitcell, 4)) + "\n"
 		text += "一辺当たりの単位ユニット数:\t" + str(self.n_cell) + "\n"
 		# text += "当初のシステムサイズ:\t\t" + str(round(org_system, 4)) + "\n"
 		text += "#########################################" + "\n"
@@ -367,12 +370,12 @@ class ReadCondSetup:
 			text += "多重度:\t\t\t\t" + str(self.multi) + "\n"
 			text += "密度:\t\t\t\t" + str(round(self.density, 4)) + "\n"
 			text += "収縮比:\t\t\t\t" + str(round(self.shrinkage, 4)) + "\n"
-		text += "NW の全セグメント数:\t\t" + str(total_net_atom) + "\n"
-		text += "システムサイズ:\t\t\t" + str(round(system, 4)) + "\n"
+		text += "NW の全セグメント数:\t\t" + str(self.total_net_atom) + "\n"
+		text += "システムサイズ:\t\t\t" + str(round(self.system, 4)) + "\n"
 		text += "#########################################" + "\n"
 		text += "絡み合いの有無:\t\t\t" + str(self.topology) + "\n"
 		if self.topology == 'Entangled':
-			text += "Slow Push Off での rfc 条件: " + ', '.join(map(str, self.rfc)) + "\n"
+			text += "Slow Push Off での rfc 条件: " + ', '.join(map(str, self.step_rfc)) + "\n"
 		else:
 			text += "NPT 計算時の初期膨張率:\t\t" + str(self.expand) + "\n"
 			text += "ステップ圧力:\t" + ', '.join(map(str, self.step_press)) + "\n"
@@ -384,26 +387,23 @@ class ReadCondSetup:
 		if abs(err_dens) > 1:
 			print(u"############################################## \n圧縮後の密度が、設定したい密度と 1% 以上違います。\nそれでも計算しますか？\n##############################################\n")
 
-		# with open("calc_conditions.txt", 'w') as f:
-		# 	f.write(text)
-		#
-		target_cond = [self.multi, system, unit_cell, total_net_atom, self.nu, self.nw_model, e2e, mod_e2e, self.shrinkage, err_dens]
+		target_cond = [self.multi, self.system, unit_cell, self.total_net_atom, self.nu, self.nw_model, self.e2e, mod_e2e, self.shrinkage, err_dens]
 
 		return target_cond
 
 	################################################################################
 	# 計算用のディレクトリーを作成
 	def make_dir(self):
-		self.target_dir = self.nw_model + "_" + self.topology + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
-		os.makedirs(self.target_dir, exist_ok = True)
-		with open(os.path.join(self.target_dir, "calc.dat"), "w") as f:
+		target_name = self.nw_model + "_" + self.topology + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
+		os.makedirs(target_name, exist_ok = True)
+		with open(os.path.join(target_name, "calc.dat"), "w") as f:
 			f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.nw_model)
-		self.make_cond_udf()
-		return self.target_dir
+		self.make_cond_udf(target_name)
+		return target_name
 	
 	###########################################
 	# make new udf when not found.
-	def make_cond_udf(self):
+	def make_cond_udf(self, target_name):
 		contents = '''
 		\\begin{def}
 			CalcCond:{
@@ -420,6 +420,10 @@ class ReadCondSetup:
 						N_Subchain: int "各セグメントの側鎖の数", 
 						N_UnitCells: int "一辺あたりのユニットセルの数"
 					} "ネットワークの条件を設定"
+				Strand:{Characteristic_Ratio: float "特性比",
+						R: float "自然長",
+						Initial_Unit_Cell: float "自然長でのユニットセル長さ"
+					}
 				Multiplisity:{
 					Multiplicity: int
 					} "多重度設定に関する設定"
@@ -430,6 +434,11 @@ class ReadCondSetup:
 				TopologyType:{
 					Type: string
 					} "ネットワーク・トポロジーを選択",
+				System:{
+					Total_Segments: int "全セグメント数",
+					SystemSize: float,
+					Nu: float
+				}
 				} "計算ターゲットの条件を設定"
 			SimulationCond:{
 				Equilib_Condition:{
@@ -446,9 +455,11 @@ class ReadCondSetup:
 			TargetCond:{
 				{"", "", 4}
 				{0, 0, 0}
+				{0., 1., 1.}
 				{1}
 				{1.0, 0.85}
 				{""}
+				{1, 1., 1.}
 				}
 			SimulationCond:{
 				{4,{1.0e-02,100000,1000}}
@@ -458,11 +469,11 @@ class ReadCondSetup:
 			\end{data}
 		'''
 		###
-		with codecs.open(os.path.join(self.target_dir, 'target_condition.udf'), 'w', 'utf_8') as f:
+		with codecs.open(os.path.join(target_name, 'target_condition.udf'), 'w', 'utf_8') as f:
 			f.write(contents)
 
 		###
-		u = UDFManager(os.path.join(self.target_dir, 'target_condition.udf'))
+		u = UDFManager(os.path.join(target_name, 'target_condition.udf'))
 		u.jump(-1)
 		##################
 		u.put(self.ver_cognac, 'CalcCond.Cognac_ver')
@@ -476,12 +487,20 @@ class ReadCondSetup:
 		u.put(self.n_sc, 'TargetCond.NetWork.N_Subchain')
 		u.put(self.n_cell, 'TargetCond.NetWork.N_UnitCells')
 
+		u.put(self.c_n, 'TargetCond.Strand.Characteristic_Ratio')
+		u.put(self.e2e, 'TargetCond.Strand.R')
+		u.put(self.org_unitcell, 'TargetCond.Strand.Initial_Unit_Cell')
+
 		u.put(self.multi, 'TargetCond.Multiplisity.Multiplicity')
 
 		u.put(self.shrinkage, 'TargetCond.Shrinkage.Shrinkage')
 		u.put(self.density, 'TargetCond.Shrinkage.Density')
 
 		u.put(self.topology, 'TargetCond.TopologyType.Type')
+
+		u.put(self.total_net_atom, 'TargetCond.System.Total_Segments')
+		u.put(self.system, 'TargetCond.System.SystemSize')
+		u.put(self.nu, 'TargetCond.System.Nu')
 		###################
 		u.put(self.equilib_repeat, 'SimulationCond.Equilib_Condition.repeat')
 		u.put(self.equilib_time[0], 'SimulationCond.Equilib_Condition.Time.delta_T')

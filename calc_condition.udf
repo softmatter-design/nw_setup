@@ -1,0 +1,68 @@
+
+	\begin{def}
+		CalcCond:{
+			Cognac_ver:select{"cognac112"} "使用する Cognac のバージョン",
+			Cores: int "計算に使用するコア数を指定"
+			} "計算の条件を設定"
+		TargetCond:{
+			Model:{TargetModel:select{"Regular_NW", "Random_NW"} "ネットワークのモデルを選択",
+				Regular_NW:{chains:select{"3_Chain_S", "3_Chain_D", "4_Chain", "6_Chain", "8_Chain"} "分岐の数と種類を選択"
+					} "規則構造での条件を入力",
+				Random_NW:{chains:select{"3_Chain", "4_Chain", "5_Chain", "6_Chain", "7_Chain"} "分岐の数と種類を選択",
+					Calc_Topolpgy:select{"Calc", "Read"} "ランダムネットワークの「計算を行うか、読み込むか」を選択",
+						Calc:{pre_sampling:int "プレサンプリング数", pre_try:int "プレサンプリング時の再トライ数", sampling:int "サンプリング数", try:int "サンプリング時の再トライ数", n_parallel:int "並行計算のCPU数"} "ランダムサーチ計算する場合の条件を設定",
+						Read:{dir_name:string} "過去の計算結果のディレクトリを記入",
+					N_histgram:int "ヒストグラムの分割数"
+					} "ランダム構造での条件を入力"
+				} "シミュレーションの条件を設定"
+			NetWork:{N_Segments: int "ストランド中のセグメント数", 
+					N_Subchain: int "各セグメントの側鎖の数", 
+					N_UnitCells: int "一辺あたりのユニットセルの数"
+				} "ネットワークの条件を設定"
+			Multiplisity:{Set_or_Calc:select{"Set", "Calc"} "多重度を設定するかどうかのフラッグ",
+					Set:{Multiplicity: int} "多重度を設定",
+					Calc:{TargetDensity:float} "多重度を自動設定した場合の密度を設定 \n設定した密度になるように多重度を設定"
+				} "多重度設定に関する設定"
+			Shrinkage:{Shrink:select{"Yes", "No"} "ストランドを自然長から圧縮するかどうかのフラッグ \n非圧縮時には、多重度に応じて密度が変化",
+				Yes:{Control:select{"Density", "Shrink"} "圧縮する場合に、密度コントロールにするか、圧縮率を決めるかを設定", 
+				Density:{target_density: float} "目標とする密度を設定", 
+				Shrinkage:{value: float} "ストランドの圧縮比率を設定"
+				}
+				} "ストランドを自然長から圧縮するかどうかを設定"
+			TopologyType:{
+				Type:select{"Entangled", "NO_Entangled"} "ネットワーク・トポロジーを選択",
+					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\n絡み合いが入るように初期化",
+					NO_Entangled:{ExpansionRatio: float "NPT 計算での初期膨張率", StepPress[]: float "NPT 計算での圧力変化"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\n絡み合いが入らないようにNPTで縮める。"
+				} "ネットワーク・トポロジーを選択",
+			} "計算ターゲットの条件を設定"
+		SimulationCond:{
+			Equilib_Condition:{
+					repeat: int "平衡化計算の繰り返し数",
+					Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "平衡化計算の時間条件を入力"
+				} "平衡化計算の時間条件を入力",
+			l_bond: float "シミュレーションでのボンドの自然長"
+			} "シミュレーションの条件を設定"
+	\end{def}
+
+		
+
+\begin{data}
+CalcCond:{"cognac112",2}
+TargetCond:{
+ {"Random_NW",{"4_Chain"}{"4_Chain","Read",{10,100,10,100,4}{"4_chains_7_cells_10_trials_100_sampling"}50}}
+ {20,0,7}
+ {"Set",{1}{0.8500000}}
+ {"No",{"Density",{0.8500000}{1.0000000}}}
+ {
+  "NO_Entangled",
+  {
+   [1.0730000,1.0000000,0.9000000,0.8000000]
+  }
+  {
+   1.5000000,
+   [5.9999999e-02,7.9999998e-02]
+  }
+ }
+}
+SimulationCond:{{4,{1.00000000000000e-02,200000,1000}}0.9700000}
+\end{data}
