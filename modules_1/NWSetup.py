@@ -32,9 +32,9 @@ class SelectSet:
 	############################
 	def select_set(self):
 		# ネットワークを設定
-		if self.nw_model == "Regular_NW":
+		if self.nw_model == "Regular":
 			calcd_data_dic = self.regnw_setup()
-		elif self.nw_model == "Random_NW":
+		elif self.nw_model == "Random":
 			calcd_data_dic = self.rndnw_setup()
 
 		return calcd_data_dic
@@ -49,13 +49,12 @@ class SelectSet:
 
 		if self.restart == '':
 			# トポロジーの異なるネットワークを探索して、任意の多重度のネットワークポリマーの代数的連結性の分布関数を策定
-			candidate_list, target_dir = self.top_search()
+			candidate_list, random_dir = self.top_search()
 		else:
 			# 設定したリスタートファイルを読み込んで、リストを作成
-			candidate_list, target_dir = self.top_select()
+			candidate_list, random_dir = self.top_select()
 
-		# sel = modules_1.RndNWSetup.Select(self.restart, self.n_hist, self.target_cond)
-		top_dic_list = self.nw_search(candidate_list, target_dir)
+		top_dic_list = self.nw_search(candidate_list, random_dir)
 
 		###########################################
 		# ターゲットとなるネットワーク全体の辞書を設定。
@@ -255,7 +254,7 @@ class SelectSet:
 				pos_all.update(jp_xyz_dic)
 				# print(jp_xyz_dic)
 				# サブチェイン中の各アトムのxyzリストとボンドリストを作成
-				strand_xyz, bond_all, atom_sc, angle_all = self.set_strands_8(jp_id_dic, strand_se_xyz[mol], mol)
+				strand_xyz, bond_all, atom_sc, angle_all = self.set_strands(jp_id_dic, strand_se_xyz[mol], mol)
 				#
 				atom_all.extend(atom_sc)
 				pos_all.update(strand_xyz)
@@ -283,7 +282,7 @@ class SelectSet:
 
 	#########################################################
 	# サブチェイン中の各アトムのxyzリストとボンドリストを作成
-	def set_strands_8(self, jp_id_dic, strand_se_xyz, mol):
+	def set_strands(self, jp_id_dic, strand_se_xyz, mol):
 		strand_xyz = {}
 		bond_all = {}
 		atom_sc = []
@@ -414,7 +413,7 @@ class SelectSet:
 		# システム全体にわたるピボットのxyzとIDの辞書を作成
 		jp_id_dic, jp_xyz_dic, atom_jp, n_jp = self.set_jp_id_rnd()
 		# ストランドの結合状態を記述
-		init_8ch_dic, vector_dic = self.set_strands(jp_id_dic)
+		init_8ch_dic, vector_dic = self.set_strands_8(jp_id_dic)
 		#
 		base_top_list = [init_8ch_dic, jp_xyz_dic, atom_jp, n_jp, vector_dic]
 
@@ -441,7 +440,7 @@ class SelectSet:
 
 	#####################################################
 	# ストランドの結合状態を記述
-	def set_strands(self, jp_id_dic):
+	def set_strands_8(self, jp_id_dic):
 		init_8ch_dic = {}
 		vector_dic = {}
 		str_id = 0
@@ -484,13 +483,13 @@ class SelectSet:
 		self.n_sampling = self.cond_top[3]
 		self.f_pool = self.cond_top[4]
 		#
-		target_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
-		target_dir += str(self.n_try) + "_trials_" + str(self.n_sampling) + "_sampling"
-		os.makedirs(target_dir, exist_ok = True)
+		random_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
+		random_dir += str(self.n_try) + "_trials_" + str(self.n_sampling) + "_sampling"
+		os.makedirs(random_dir, exist_ok = True)
 		#
 		candidate_list = self.strand_exchange()
 		#
-		with open(os.path.join(target_dir, 'init.pickle'), mode = 'wb') as f:
+		with open(os.path.join(random_dir, 'init.pickle'), mode = 'wb') as f:
 			pickle.dump(candidate_list, f)
 		#
 		print("##################################################")
@@ -499,24 +498,25 @@ class SelectSet:
 		print("Initial Candidates = ", len(candidate_list))
 		print("##################################################")
 
-		return candidate_list, target_dir
+		return candidate_list, random_dir
 
 	#####################################################
 	# 任意のストランドを選択し、ストランドの繋ぎ変えを行う
 	def strand_exchange(self):
-		tmp_list = []
+		self.tmp_list = []
 		final_list = []
 		# p = Pool(multiprocessing.cpu_count() - 4)
 		p = Pool(self.f_pool)
 		result = p.map(self.pre_search, range(self.pre_sampling))
 		for i in result:
-			tmp_list.extend(i)
+			self.tmp_list.extend(i)
 		print("##################################################")
-		print("Pre_Search Result:", len(tmp_list))
+		print("Pre_Search Result:", len(self.tmp_list))
 		print("##################################################")
 		#
-		for i in range(self.n_sampling):
-			final_list.extend(self.search_second(tmp_list, i))
+		result = p.map(self.search_second, range(self.n_sampling))
+		for i in result:
+			final_list.extend(i)
 
 		return final_list
 
@@ -541,7 +541,6 @@ class SelectSet:
 			#
 			if alg_const_init > alg_const:
 				flag = 0
-
 		return tmp_dic, alg_const
 
 	########################################################
@@ -550,7 +549,7 @@ class SelectSet:
 		dic, alg_const = self.random_reduce()
 		print("pre_sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
 		#
-		tmp_list = []
+		result = []
 		count = 0
 		failed = 0
 		show = 5
@@ -561,7 +560,7 @@ class SelectSet:
 			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
 			if alg_const != 0:
 				count += 1
-				tmp_list.append([alg_const, tmp_dic])
+				result.append([alg_const, tmp_dic])
 				failed = 0
 				if count != 0 and round(show*count/self.pre_try) == show*count//self.pre_try and round(show*count/self.pre_try) == -(-show*count//self.pre_try):
 					print("pre_sampling ID =", x, "count = ", count)
@@ -574,16 +573,16 @@ class SelectSet:
 				count = self.pre_try
 				failed = 0
 		# 
-		return tmp_list
+		return result
 
 	########################################################
 	# ストランドの繋ぎ変えを行う
-	def search_second(self, tmp_list, x):
-		dic = random.choice(tmp_list)[1]
+	def search_second(self, x):
+		dic = random.choice(self.tmp_list)[1]
 		alg_const = self.calc_lap_mat(dic)
 		print("Sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
 		#
-		tmp_list = []
+		result = []
 		count = 0
 		failed = 0
 		show = 5
@@ -594,7 +593,7 @@ class SelectSet:
 			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
 			if alg_const != 0:
 				count += 1
-				tmp_list.append([alg_const, tmp_dic])
+				result.append([alg_const, tmp_dic])
 				failed = 0
 				if count != 0 and round(show*count/self.n_try) == show*count//self.n_try and round(show*count/self.n_try) == -(-show*count//self.n_try):
 					print("Sampling ID =", x, "count = ", count)
@@ -607,7 +606,7 @@ class SelectSet:
 				count = self.n_try
 				failed = 0
 		# 
-		return tmp_list
+		return result
 
 	################################################################
 	# 交換可能なストランドのペアを見つける
@@ -726,7 +725,7 @@ class SelectSet:
 
 	#####################################################################
 	# ヒストグラム中の最大頻度を与えるネットワークトポロジーの配列辞書を決める。
-	def nw_search(self, candidate_list, target_dir):
+	def nw_search(self, candidate_list, random_dir):
 		tmp_list = []
 		val_list = []
 		data_list = []
@@ -734,7 +733,7 @@ class SelectSet:
 		# ヒストグラムを作成
 		histdata = list(np.array(candidate_list)[:,0])
 		cond = ["", histdata, self.n_hist, "True", ['Arg. Con.', 'Freq.']]
-		x, val = self.make_hist_all(cond, target_dir)
+		x, val = self.make_hist_all(cond, random_dir)
 
 		# 最頻値のレンジを決める
 		val_range = self.find_range(x, val)
@@ -752,7 +751,7 @@ class SelectSet:
 				data_list.append(selected_list[1])
 				count += 1
 			if len(val_list) == self.multi:
-				with open(os.path.join(target_dir, 'selected_val.dat'), 'w') as f:
+				with open(os.path.join(random_dir, 'selected_val.dat'), 'w') as f:
 					f.write("Selected arg. con.\n\n")
 					for i in val_list:
 						print("Selected arg. con.", round(i, 4))
@@ -761,6 +760,7 @@ class SelectSet:
 		#
 		print("No effective list was found for multi numbers of", self.multi, "!  Try again!!")
 		sys.exit()
+
 
 	#######################
 	# 最大頻度の範囲を決める。
@@ -790,7 +790,7 @@ class SelectSet:
 
 	###########################
 	# ヒストグラムのグラフの作成
-	def make_hist_all(self, cond_list, target_dir):
+	def make_hist_all(self, cond_list, random_dir):
 		self.base = cond_list[0]
 		self.list = cond_list[1]
 		self.bins = cond_list[2]
@@ -803,9 +803,9 @@ class SelectSet:
 		# ヒストグラムのデータ作成
 		bin_width, hist_data, val, x = self.make_hist_data()
 		# ヒストグラムのデータを書き出し 
-		self.write_data(hist_data, target_dir)
+		self.write_data(hist_data, random_dir)
 		# グラフを作成
-		self.make_graph(bin_width, target_dir)
+		self.make_graph(bin_width, random_dir)
 		return x, val
 
 	# ヒストグラムのデータ作成
@@ -823,19 +823,19 @@ class SelectSet:
 		return bin_width, hist_data, val, x
 
 	# ヒストグラムのデータを書き出し 
-	def write_data(self, hist_data, target_dir):
-		os.makedirs(target_dir, exist_ok=True)
-		with open(os.path.join(target_dir, self.f_dat), 'w') as f:
+	def write_data(self, hist_data, random_dir):
+		os.makedirs(random_dir, exist_ok=True)
+		with open(os.path.join(random_dir, self.f_dat), 'w') as f:
 			f.write("# Histgram data:\n\n")
 			for line in hist_data:
 				f.write(str(line[0]) + '\t' + str(line[1])  + '\n')
 		return
 
 	# グラフを作成
-	def make_graph(self, bin_width, target_dir):
-		self.make_script(bin_width, target_dir)
+	def make_graph(self, bin_width, random_dir):
+		self.make_script(bin_width, random_dir)
 		cwd = os.getcwd()
-		os.chdir(target_dir)
+		os.chdir(random_dir)
 		if platform.system() == "Windows":
 			subprocess.call(self.f_plt, shell=True)
 		elif platform.system() == "Linux":
@@ -844,7 +844,7 @@ class SelectSet:
 		return
 		
 	# 必要なスクリプトを作成
-	def make_script(self, bin_width, target_dir):
+	def make_script(self, bin_width, random_dir):
 		script = 'set term pngcairo font "Arial,14" \nset colorsequence classic \n'
 		script += '# \ndata = "' + self.f_dat + '" \nset output "' + self.f_png + ' "\n'
 		script += '#\nset size square\n# set xrange [0:1.0]\n#set yrange [0:100]\n'
@@ -852,12 +852,11 @@ class SelectSet:
 		script += 'set style fill solid 0.5\nset boxwidth ' + str(bin_width) + '\n'
 		script += '#\nplot data w boxes noti'
 		print("OK")
-		with open(os.path.join(target_dir, self.f_plt), 'w') as f:
+		with open(os.path.join(random_dir, self.f_plt), 'w') as f:
 			# script = self.script_content(bin_width)
 			f.write(script)
 		return
 		
-
 	################################################################################
 	# ターゲットとなるネットワーク全体の辞書を決める。
 	################################################################################

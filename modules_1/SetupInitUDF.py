@@ -9,15 +9,14 @@ from UDFManager import UDFManager
 ##########################################
 class MakeInitUDF:
 	def __init__(self, basic_cond, nw_cond, sim_cond, target_cond, calcd_data_dic):
-		#
 		# self.ver_cognac = basic_cond[0]
 		self.blank_udf = basic_cond[1]
 		self.base_udf = basic_cond[2]
 		# self.core = ' -n ' + str(basic_cond[3])
 		#
-		# if nw_cond[0] == "Regular_NW":
+		# if nw_cond[0] == "Regular":
 		# 	self.nw_model = 'RegNW'
-		# elif nw_cond[0] == "Random_NW":
+		# elif nw_cond[0] == "Random":
 		# 	self.nw_model = 'RandNW'
 		# self.strand = nw_cond[1]
 		# self.n_strand = nw_cond[2]

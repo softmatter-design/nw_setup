@@ -38,10 +38,10 @@ def makenewudf():
 			Cores: int "計算に使用するコア数を指定"
 			} "計算の条件を設定"
 		TargetCond:{
-			Model:{TargetModel:select{"Regular_NW", "Random_NW"} "ネットワークのモデルを選択",
-				Regular_NW:{chains:select{"3_Chain_S", "3_Chain_D", "4_Chain", "6_Chain", "8_Chain"} "分岐の数と種類を選択"
+			Model:{TargetModel:select{"Regular", "Random"} "ネットワークのモデルを選択",
+				Regular:{chains:select{"3_Chain_S", "3_Chain_D", "4_Chain", "6_Chain", "8_Chain"} "分岐の数と種類を選択"
 					} "規則構造での条件を入力",
-				Random_NW:{chains:select{"3_Chain", "4_Chain", "5_Chain", "6_Chain", "7_Chain"} "分岐の数と種類を選択",
+				Random:{chains:select{"3_Chain", "4_Chain", "5_Chain", "6_Chain", "7_Chain"} "分岐の数と種類を選択",
 					Calc_Topolpgy:select{"Calc", "Read"} "ランダムネットワークの「計算を行うか、読み込むか」を選択",
 						Calc:{pre_sampling:int "プレサンプリング数", pre_try:int "プレサンプリング時の再トライ数", sampling:int "サンプリング数", try:int "サンプリング時の再トライ数", n_parallel:int "並行計算のCPU数"} "ランダムサーチ計算する場合の条件を設定",
 						Read:{dir_name:string} "過去の計算結果のディレクトリを記入",
@@ -62,7 +62,7 @@ def makenewudf():
 				Shrinkage:{value: float} "ストランドの圧縮比率を設定"
 				}
 				} "ストランドを自然長から圧縮するかどうかを設定"
-			TopologyType:{
+			Entanglement:{
 				Type:select{"Entangled", "NO_Entangled"} "ネットワーク・トポロジーを選択",
 					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入るように初期化",
 					NO_Entangled:{ExpansionRatio: float "NPT 計算での初期膨張率", StepPress[]: float "NPT 計算での圧力変化"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入らないようにNPTで縮める。"
@@ -80,7 +80,7 @@ def makenewudf():
 	\\begin{data}
 		CalcCond:{"cognac112",1}
 TargetCond:{
-	{"Regular_NW", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}50}}
+	{"Regular", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}50}}
 	{20, 0, 3}
 	{"Set", {1}{0.85}}
 	{"No", {"Density", {0.85}{1.0}}}
@@ -161,10 +161,10 @@ class ReadCondSetup:
 		cond_top = []
 		n_hist = 0
 		#
-		if self.nw_model == "Regular_NW":
-			self.strand = u.get('TargetCond.Model.Regular_NW.chains')
-		elif self.nw_model == "Random_NW":
-			self.strand = u.get('TargetCond.Model.Random_NW.chains')
+		if self.nw_model == "Regular":
+			self.strand = u.get('TargetCond.Model.Regular.chains')
+		elif self.nw_model == "Random":
+			self.strand = u.get('TargetCond.Model.Random.chains')
 		################
 		if self.strand == "3_Chain" or self.strand == "3_Chain_S" or self.strand == "3_Chain_D":
 			self.n_strand = 3
@@ -184,11 +184,11 @@ class ReadCondSetup:
 		self.n_sc = u.get('TargetCond.NetWork.N_Subchain')
 		self.n_cell = u.get('TargetCond.NetWork.N_UnitCells')
 		###################
-		if self.nw_model == "Random_NW":
-			calc = u.get('TargetCond.Model.Random_NW.Calc_Topolpgy')
-			n_hist = u.get('TargetCond.Model.Random_NW.N_histgram')
+		if self.nw_model == "Random":
+			calc = u.get('TargetCond.Model.Random.Calc_Topolpgy')
+			n_hist = u.get('TargetCond.Model.Random.N_histgram')
 			if calc == 'Read':
-				restart = u.get('TargetCond.Model.Random_NW.Read.dir_name')
+				restart = u.get('TargetCond.Model.Random.Read.dir_name')
 				if not os.path.exists(os.path.join(restart, 'init.pickle')):
 					exit("##########\ntarget directory does not exists.")
 				elif self.n_strand != int(restart.split('_')[0]):
@@ -196,7 +196,7 @@ class ReadCondSetup:
 				elif self.n_cell != int(restart.split('_')[2]):
 					sys.exit("##########\nnumber of cells: selected n_cell is different from original Calculation.")
 			elif calc == 'Calc':
-				cond_top = u.get('TargetCond.Model.Random_NW.Calc')
+				cond_top = u.get('TargetCond.Model.Random.Calc')
 		###################
 		## 多重度の設定
 		if u.get('TargetCond.Multiplisity.Set_or_Calc') == 'Set':
@@ -216,15 +216,15 @@ class ReadCondSetup:
 		elif u.get('TargetCond.Shrinkage.Shrink') == 'No':
 			self.shrinkage = 1.
 		#####
-		self.topology = u.get('TargetCond.TopologyType.Type')
+		self.topology = u.get('TargetCond.Entanglement.Type')
 		if self.topology == 'Entangled':
-			self.step_rfc = u.get('TargetCond.TopologyType.Entangled.Step_rfc[]')
+			self.step_rfc = u.get('TargetCond.Entanglement.Entangled.Step_rfc[]')
 			self.expand = 1.0
 			self.step_press = []
 		elif self.topology == 'NO_Entangled':
 			self.step_rfc = []
-			self.expand = u.get('TargetCond.TopologyType.NO_Entangled.ExpansionRatio')
-			self.step_press = u.get('TargetCond.TopologyType.NO_Entangled.StepPress[]')
+			self.expand = u.get('TargetCond.Entanglement.NO_Entangled.ExpansionRatio')
+			self.step_press = u.get('TargetCond.Entanglement.NO_Entangled.StepPress[]')
 		##########
 		## シミュレーションの条件
 		self.equilib_repeat = u.get('SimulationCond.Equilib_Condition.repeat')
@@ -260,7 +260,7 @@ class ReadCondSetup:
 	def set_length(self):
 		self.e2e = self.l_bond*((self.n_segments + 1)*self.c_n)**0.5					# 理想鎖状態での末端間距離
 
-		if self.nw_model == "Regular_NW":
+		if self.nw_model == "Regular":
 			if self.strand == "3_Chain_S":
 				n_chains = 12						        					# サブチェインの本数
 				n_beads_unit = 8 + self.n_segments*(1 + self.n_sc)*n_chains		# ユニットセル当たりの粒子数
@@ -282,7 +282,7 @@ class ReadCondSetup:
 				n_beads_unit = 2 + self.n_segments*(1 + self.n_sc)*n_chains   
 				self.org_unitcell = (2*3**0.5)*self.e2e/3	
 
-		elif self.nw_model == "Random_NW":
+		elif self.nw_model == "Random":
 			n_chains = self.n_strand
 			n_beads_unit = 2 + self.n_segments*(1 + self.n_sc)*n_chains
 			self.org_unitcell = (2*3**0.5)*self.e2e/3	
@@ -431,7 +431,7 @@ class ReadCondSetup:
 					Shrinkage: float, 
 					Density:float
 					} "ストランドを自然長から圧縮するかどうかを設定"
-				TopologyType:{
+				Entanglement:{
 					Type: string
 					} "ネットワーク・トポロジーを選択",
 				System:{
@@ -496,7 +496,7 @@ class ReadCondSetup:
 		u.put(self.shrinkage, 'TargetCond.Shrinkage.Shrinkage')
 		u.put(self.density, 'TargetCond.Shrinkage.Density')
 
-		u.put(self.topology, 'TargetCond.TopologyType.Type')
+		u.put(self.topology, 'TargetCond.Entanglement.Type')
 
 		u.put(self.total_net_atom, 'TargetCond.System.Total_Segments')
 		u.put(self.system, 'TargetCond.System.SystemSize')

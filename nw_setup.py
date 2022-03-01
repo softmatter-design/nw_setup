@@ -9,6 +9,7 @@ def main():
 # 設定条件を読み込み、ネットワークポリマーの諸量を計算
     basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir = modules_1.ReadNWConditions.setupcondition()
 
+
     ###################
     # ネットワークを設定
     nwsetup = modules_1.NWSetup.SelectSet(nw_cond, target_cond, rnd_cond)
