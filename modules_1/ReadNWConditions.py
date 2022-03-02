@@ -180,7 +180,7 @@ class ReadCondSetup:
 			self.n_strand = 6
 		elif self.strand == "7_Chain":
 			self.n_strand = 7
-		elif self.trand == "8_Chain":
+		elif self.strand == "8_Chain":
 			self.n_strand = 8
 		###################
 		## ポリマー鎖の設定

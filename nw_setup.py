@@ -18,6 +18,7 @@ def main():
     # baseUDF の作成
     baseudf = modules_1.SetupInitUDF.MakeInitUDF(basic_cond, sim_cond, target_cond, calcd_data_dic)
     baseudf.setup_baseudf(target_dir)
+    
     ###############
     # シミュレーションを設定
     setup = modules_1.EquivCalcSetup.SetUpUDF(basic_cond, sim_cond, target_dir)

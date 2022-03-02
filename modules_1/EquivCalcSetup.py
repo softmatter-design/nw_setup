@@ -46,7 +46,6 @@ class SetUpUDF:
 						["site_Solvent", "site_End"],
 						["site_Solvent", "site_Strand"],
 						]
-
 	####################################
 	# UDFファイルを設定し、バッチ処理を作成
 	def setup_udf(self):
@@ -57,12 +56,7 @@ class SetUpUDF:
 
 		###############
 		# entanglementに応じて計算条件を選択
-		# if self.entanglement == "homo_KG":
-		# 	print("making homo KG")
-		# 	batch = self.homo_kg(batch)
-		# 	# 評価用のパイソンスクリプトを作成
-		# 	self.evaluate_setup("chain")
-		elif self.entanglement == "Entangled":
+		if self.entanglement == "Entangled":
 			batch = self.entangle_calc(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("strand")
