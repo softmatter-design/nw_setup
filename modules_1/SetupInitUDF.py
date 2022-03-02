@@ -8,44 +8,20 @@ from UDFManager import UDFManager
 # Initial_UDF の作成
 ##########################################
 class MakeInitUDF:
-	def __init__(self, basic_cond, nw_cond, sim_cond, target_cond, calcd_data_dic):
-		# self.ver_cognac = basic_cond[0]
+	def __init__(self, basic_cond, sim_cond, target_cond, calcd_data_dic):
 		self.blank_udf = basic_cond[1]
 		self.base_udf = basic_cond[2]
-		# self.core = ' -n ' + str(basic_cond[3])
 		#
-		# if nw_cond[0] == "Regular":
-		# 	self.nw_model = 'RegNW'
-		# elif nw_cond[0] == "Random":
-		# 	self.nw_model = 'RandNW'
-		# self.strand = nw_cond[1]
-		# self.n_strand = nw_cond[2]
-		# self.n_segments = nw_cond[3]
-		# self.n_cell = nw_cond[4]
-		# self.n_sc = nw_cond[5]
-		# self.l_bond = nw_cond[6]
-		# self.c_n = nw_cond[7]
-		#
-		self.sim_type = sim_cond[0]
-		# self.multi_init = sim_cond[1]
+		self.entanglement = sim_cond[0]
 		self.target_density = sim_cond[2]
-		# self.nv = sim_cond[3]
 		self.expand = sim_cond[4]
-		# self.step_press = sim_cond[5]
-		# self.rfc = sim_cond[6]
-		# self.equilib_repeat = sim_cond[7]
-		# self.equilib_time = sim_cond[8]
-		#
-		# self.multi = target_cond[0]
-		self.system_size = target_cond[1]
-		self.unit_cell = target_cond[2]
-		self.total_atom = target_cond[3]
-		# self.nu = target_cond[4]
-		# self.structure = target_cond[5]
-		# self.n_solvent = target_cond[6]
+
+		self.system_size = target_cond[0]
+		self.unit_cell = target_cond[1]
+		self.total_atom = target_cond[2]
 		#
 		self.calcd_data_dic = calcd_data_dic
-		# 条件設定
+
 		# Cognac用の名称設定
 		self.nw_name = "Network"
 		self.atom_name = ["JP_A", "End_A", "Strand_A", "Side_A", "Solvent"]
@@ -86,7 +62,7 @@ class MakeInitUDF:
 	# ################################################################################
 	# # 計算用のディレクトリーを作成
 	# def make_dir(self):
-	# 	target_dir = self.nw_model + "_" + self.sim_type + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
+	# 	target_dir = self.nw_model + "_" + self.entanglement + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
 	# 	os.makedirs(target_dir, exist_ok = True)
 	# 	with open(os.path.join(target_dir, "calc.dat"), "w") as f:
 	# 		f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.structure)
@@ -118,11 +94,11 @@ class MakeInitUDF:
 		# Solver
 		p = 'Simulation_Conditions.Solver.'
 		u.put('Dynamics', p + 'Solver_Type')
-		if self.sim_type == "NO_Entangled":
+		if self.entanglement == "NO_Entangled":
 			u.put('NPT_Andersen_Kremer_Grest', 	p + 'Dynamics.Dynamics_Algorithm')
 			u.put(self.total_atom, 				p + 'Dynamics.NPT_Andersen_Kremer_Grest.Cell_Mass')
 			u.put(0.5, 							p + 'Dynamics.NPT_Andersen_Kremer_Grest.Friction')
-		elif self.sim_type == "Entangled":
+		elif self.entanglement == "Entangled":
 			u.put('NVT_Kremer_Grest', 			p + 'Dynamics.Dynamics_Algorithm')
 			u.put(0.5, 							p + 'Dynamics.NVT_Kremer_Grest.Friction')
 		# Boundary_Conditions
@@ -165,7 +141,7 @@ class MakeInitUDF:
 		#--- Initial_Structure ---
 		# Initial_Unit_Cell
 		p = 'Initial_Structure.Initial_Unit_Cell.'
-		if self.sim_type == "NO_Entangled":
+		if self.entanglement == "NO_Entangled":
 			p = 'Initial_Structure.Initial_Unit_Cell.'
 			u.put(0, p + 'Density')
 			u.put([self.system_size*self.expand, self.system_size*self.expand, self.system_size*self.expand, 90.0, 90.0, 90.0], p + 'Cell_Size')
@@ -293,7 +269,7 @@ class MakeInitUDF:
 			shift_vec = self.expand*count*shift*np.array(np.random.rand(3))
 			pos_all = self.calcd_data_dic[mul]["pos_all"]
 			for i in range(len(pos_all)):
-				if self.sim_type == "NO_Entangled":
+				if self.entanglement == "NO_Entangled":
 					mod_pos = self.expand*self.unit_cell*np.array(list(pos_all[i])) + self.expand*shift_vec
 				else:
 					mod_pos = self.unit_cell*np.array(list(pos_all[i])) + shift_vec

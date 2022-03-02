@@ -65,7 +65,11 @@ def makenewudf():
 			Entanglement:{
 				Type:select{"Entangled", "NO_Entangled"} "ネットワーク・トポロジーを選択",
 					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入るように初期化",
-					NO_Entangled:{ExpansionRatio: float "NPT 計算での初期膨張率", StepPress[]: float "NPT 計算での圧力変化"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入らないようにNPTで縮める。"
+					NO_Entangled:{
+						ExpansionRatio: float "NPT 計算での初期膨張率", 
+						StepPress[]: float "NPT 計算での圧力変化",
+						Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "時間条件を入力"
+						} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入らないようにNPTで縮める。"
 				} "ネットワーク・トポロジーを選択",
 			} "計算ターゲットの条件を設定"
 		SimulationCond:{
@@ -86,7 +90,7 @@ TargetCond:{
 	{"No", {"Density", {0.85}{1.0}}}
 	{"Entangled",
 		{[1.073,1.0,0.9,0.8]},
-		{2.0, [0.2,0.5,1.0,2.0,3.0,4.5]}
+		{2.0, [0.2,0.5,1.0,2.0,3.0,4.5], {1.0e-02,200000,1000}}
 		}
 	}
 SimulationCond:{
@@ -128,8 +132,8 @@ class ReadCondSetup:
 			print("\n\nSetting UP progress !!")
 			# 計算用のディレクトリーを作成
 			target_dir = self.make_dir()
-			nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc, self.l_bond, self.c_n]
-			sim_cond = [self.topology, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.step_rfc, self.equilib_repeat, self.equilib_time]
+			nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc]
+			sim_cond = [self.entanglement, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.step_rfc, self.equilib_repeat, self.equilib_time]
 			return basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir
 		else:
 			sys.exit("##### \nQuit !!")
@@ -185,9 +189,9 @@ class ReadCondSetup:
 		self.n_cell = u.get('TargetCond.NetWork.N_UnitCells')
 		###################
 		if self.nw_model == "Random":
-			calc = u.get('TargetCond.Model.Random.Calc_Topolpgy')
+			self.calc = u.get('TargetCond.Model.Random.Calc_Topolpgy')
 			n_hist = u.get('TargetCond.Model.Random.N_histgram')
-			if calc == 'Read':
+			if self.calc == 'Read':
 				restart = u.get('TargetCond.Model.Random.Read.dir_name')
 				if not os.path.exists(os.path.join(restart, 'init.pickle')):
 					exit("##########\ntarget directory does not exists.")
@@ -195,7 +199,7 @@ class ReadCondSetup:
 					sys.exit("##########\nnumber of strands: selected n_strand is different from original Calculation.")
 				elif self.n_cell != int(restart.split('_')[2]):
 					sys.exit("##########\nnumber of cells: selected n_cell is different from original Calculation.")
-			elif calc == 'Calc':
+			elif self.calc == 'Calc':
 				cond_top = u.get('TargetCond.Model.Random.Calc')
 		###################
 		## 多重度の設定
@@ -216,12 +220,12 @@ class ReadCondSetup:
 		elif u.get('TargetCond.Shrinkage.Shrink') == 'No':
 			self.shrinkage = 1.
 		#####
-		self.topology = u.get('TargetCond.Entanglement.Type')
-		if self.topology == 'Entangled':
+		self.entanglement = u.get('TargetCond.Entanglement.Type')
+		if self.entanglement == 'Entangled':
 			self.step_rfc = u.get('TargetCond.Entanglement.Entangled.Step_rfc[]')
 			self.expand = 1.0
 			self.step_press = []
-		elif self.topology == 'NO_Entangled':
+		elif self.entanglement == 'NO_Entangled':
 			self.step_rfc = []
 			self.expand = u.get('TargetCond.Entanglement.NO_Entangled.ExpansionRatio')
 			self.step_press = u.get('TargetCond.Entanglement.NO_Entangled.StepPress[]')
@@ -351,6 +355,11 @@ class ReadCondSetup:
 		#
 		text = "#########################################" + "\n"
 		text += "ネットワークトポロジー\t\t" + str(self.nw_model) + "\n"
+		if self.nw_model == "Random":
+			if self.calc == 'Read':
+				text += "\t** 過去の計算を読み込み **\n"
+			elif self.calc == 'Calc':
+				text += "\t** ランダム構造を計算 **\n"
 		text += "ネットワークモデル\t\t" + str(self.strand) + "\n"
 		text += "#########################################" + "\n"
 		text += "ストランド中のセグメント数:\t" + str(self.n_segments) + "\n"
@@ -373,8 +382,8 @@ class ReadCondSetup:
 		text += "NW の全セグメント数:\t\t" + str(self.total_net_atom) + "\n"
 		text += "システムサイズ:\t\t\t" + str(round(self.system, 4)) + "\n"
 		text += "#########################################" + "\n"
-		text += "絡み合いの有無:\t\t\t" + str(self.topology) + "\n"
-		if self.topology == 'Entangled':
+		text += "絡み合いの有無:\t\t\t" + str(self.entanglement) + "\n"
+		if self.entanglement == 'Entangled':
 			text += "Slow Push Off での rfc 条件: " + ', '.join(map(str, self.step_rfc)) + "\n"
 		else:
 			text += "NPT 計算時の初期膨張率:\t\t" + str(self.expand) + "\n"
@@ -387,17 +396,17 @@ class ReadCondSetup:
 		if abs(err_dens) > 1:
 			print(u"############################################## \n圧縮後の密度が、設定したい密度と 1% 以上違います。\nそれでも計算しますか？\n##############################################\n")
 
-		target_cond = [self.multi, self.system, unit_cell, self.total_net_atom, self.nu, self.nw_model, self.e2e, mod_e2e, self.shrinkage, err_dens]
+		target_cond = [self.system, unit_cell, self.total_net_atom]
 
 		return target_cond
 
 	################################################################################
 	# 計算用のディレクトリーを作成
 	def make_dir(self):
-		target_name = self.nw_model + "_" + self.topology + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
+		target_name = self.nw_model + "_" + self.entanglement + "_" + self.strand + '_N_' + str(self.n_segments) + "_Cells_" + str(self.n_cell) + "_Multi_" + str(self.multi)
 		os.makedirs(target_name, exist_ok = True)
-		with open(os.path.join(target_name, "calc.dat"), "w") as f:
-			f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.nw_model)
+		# with open(os.path.join(target_name, "calc.dat"), "w") as f:
+		# 	f.write("# segments\tbond_length\tCN\tfunc\tnu\tNW_type\n" + str(self.n_segments) + '\t' + str(self.l_bond) + '\t' + str(self.c_n) + "\t" + str(round(self.nu, 5)) + '\t' + self.nw_model)
 		self.make_cond_udf(target_name)
 		return target_name
 	
@@ -413,12 +422,15 @@ class ReadCondSetup:
 			TargetCond:{
 				Model:{
 					TargetModel: string "ネットワークのモデル",
+					RandomData: string "ランダム計算のディレクトリ",
+					SelectedValue[]: float "ランダム構造の場合の選択"
+					} "シミュレーションの条件を設定"
+				NetWork:{
 					Strand: string "分岐の数と種類",
 					N_Strands: int "ストランドの数"
-					} "シミュレーションの条件を設定"
-				NetWork:{N_Segments: int "ストランド中のセグメント数", 
-						N_Subchain: int "各セグメントの側鎖の数", 
-						N_UnitCells: int "一辺あたりのユニットセルの数"
+					N_Segments: int "ストランド中のセグメント数", 
+					N_Subchain: int "各セグメントの側鎖の数", 
+					N_UnitCells: int "一辺あたりのユニットセルの数"
 					} "ネットワークの条件を設定"
 				Strand:{Characteristic_Ratio: float "特性比",
 						R: float "自然長",
@@ -453,8 +465,8 @@ class ReadCondSetup:
 		\\begin{data}
 			CalcCond:{"",1}
 			TargetCond:{
-				{"", "", 4}
-				{0, 0, 0}
+				{"", "", []}
+				{"", 4, 0, 0, 0}
 				{0., 1., 1.}
 				{1}
 				{1.0, 0.85}
@@ -480,9 +492,11 @@ class ReadCondSetup:
 		u.put(self.core, 'CalcCond.Cores')
 		##################
 		u.put(self.nw_model, 'TargetCond.Model.TargetModel')
-		u.put(self.strand, 'TargetCond.Model.Strand')
-		u.put(self.n_strand, 'TargetCond.Model.N_Strands')
+		u.put('none', 'TargetCond.Model.RandomData')
+		u.put([], 'TargetCond.Model.SelectedValue[]')
 
+		u.put(self.strand, 'TargetCond.NetWork.Strand')
+		u.put(self.n_strand, 'TargetCond.NetWork.N_Strands')
 		u.put(self.n_segments, 'TargetCond.NetWork.N_Segments')
 		u.put(self.n_sc, 'TargetCond.NetWork.N_Subchain')
 		u.put(self.n_cell, 'TargetCond.NetWork.N_UnitCells')
@@ -496,7 +510,7 @@ class ReadCondSetup:
 		u.put(self.shrinkage, 'TargetCond.Shrinkage.Shrinkage')
 		u.put(self.density, 'TargetCond.Shrinkage.Density')
 
-		u.put(self.topology, 'TargetCond.Entanglement.Type')
+		u.put(self.entanglement, 'TargetCond.Entanglement.Type')
 
 		u.put(self.total_net_atom, 'TargetCond.System.Total_Segments')
 		u.put(self.system, 'TargetCond.System.SystemSize')

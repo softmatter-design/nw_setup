@@ -10,17 +10,12 @@ from UDFManager import UDFManager
 ##########################################
 class SetUpUDF:
 	def __init__(self, basic_cond, sim_cond, target_dir):
-		#
 		self.ver_cognac = basic_cond[0]
-		# self.blank_udf = basic_cond[1]
 		self.base_udf = basic_cond[2]
 		self.core = ' -n ' + str(basic_cond[3])
 		# 
-		self.sim_type = sim_cond[0]
-		# self.multi_init = sim_cond[1]
+		self.entanglement = sim_cond[0]
 		self.density = sim_cond[2]
-		self.nv = sim_cond[3]
-		# self.expand = sim_cond[4]
 		self.step_press = sim_cond[5]
 		self.rfc = sim_cond[6]
 		self.equilib_repeat = sim_cond[7]
@@ -28,6 +23,7 @@ class SetUpUDF:
 		#
 		self.target_dir = target_dir
 		self.f_eval_py = 'evaluate_all.py'
+		
 		# Cognac用の名称設定
 		self.nw_name = "Network"
 		self.atom_name = ["JP_A", "End_A", "Strand_A", "Side_A", "Solvent"]
@@ -60,17 +56,17 @@ class SetUpUDF:
 			batch = "#!/bin/bash\n"
 
 		###############
-		# sim_typeに応じて計算条件を選択
-		if self.sim_type == "homo_KG":
-			print("making homo KG")
-			batch = self.homo_kg(batch)
-			# 評価用のパイソンスクリプトを作成
-			self.evaluate_setup("chain")
-		elif self.sim_type == "Entangled":
+		# entanglementに応じて計算条件を選択
+		# if self.entanglement == "homo_KG":
+		# 	print("making homo KG")
+		# 	batch = self.homo_kg(batch)
+		# 	# 評価用のパイソンスクリプトを作成
+		# 	self.evaluate_setup("chain")
+		elif self.entanglement == "Entangled":
 			batch = self.entangle_calc(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("strand")
-		elif self.sim_type == "NO_Entangled":
+		elif self.entanglement == "NO_Entangled":
 			batch = self.npt_calc(batch)
 			# 評価用のパイソンスクリプトを作成
 			self.evaluate_setup("strand")
@@ -123,64 +119,64 @@ class SetUpUDF:
 ######################
 # 各種バッチ条件を設定
 ######################
-	######################################################################
-	# ホモポリマーのKG鎖の計算
-	def homo_kg(self, batch):
-		# Force Capped LJ によりステップワイズに初期化
-		r = 0.9558*2**(1/6)
-		batch = self.make_title(batch, "Calculating-Init")
-		fn_ext = ['Init_', '_uin.udf']
-		time = [0.001, 1000000, 10000]
-		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-		self.step_nonbond_setup(self.base_udf, 'random', present_udf, time, r)
-		pre = read_udf
-		template = present_udf
-		#
-		for r in [1.0, 0.9, 0.8]:
-			# 平衡化
-			batch = self.make_title(batch, "Calculating-Pre_" + str(round(r, 3)).replace('.', '_'))
-			fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "_uin.udf"]
-			time = [0.01, 5000000, 50000]
-			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-			self.step_nonbond_setup(template, pre, present_udf, time, r)
-			pre = read_udf
-			template = present_udf
-		# KG 鎖に設定
-		time = [0.01, 10000000, 100000]
-		batch = self.make_title(batch, "Calculating-KG")
-		fn_ext = ['KG_', "_uin.udf"]
-		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-		self.kg_setup(template, pre, present_udf, time)
-		pre = read_udf
-		template = present_udf
-		# 平衡化計算
-		repeat = 4
-		time = [0.01, 2000000, 5000]
-		for i in range(repeat):
-			# 平衡化
-			batch = self.make_title(batch, "Calculating-Eq_" + str(i))
-			fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
-			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-			self.eq_setup(template, pre, present_udf, time)
-			pre = read_udf
-			template = present_udf
-		# グリーン久保
-		repeat = 5
-		time = [0.01, 20000000, 100000]
-		for i in range(repeat):
-			# 平衡化
-			batch = self.make_title(batch, "Calculating-GK_" + str(i))
-			fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
-			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
-			self.greenkubo_setup(template, pre, present_udf, time)
-			pre = read_udf
-			template = present_udf
-		return batch
+	# ######################################################################
+	# # ホモポリマーのKG鎖の計算
+	# def homo_kg(self, batch):
+	# 	# Force Capped LJ によりステップワイズに初期化
+	# 	r = 0.9558*2**(1/6)
+	# 	batch = self.make_title(batch, "Calculating-Init")
+	# 	fn_ext = ['Init_', '_uin.udf']
+	# 	time = [0.001, 1000000, 10000]
+	# 	f_eval = 1
+	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 	self.step_nonbond_setup(self.base_udf, 'random', present_udf, time, r)
+	# 	pre = read_udf
+	# 	template = present_udf
+	# 	#
+	# 	for r in [1.0, 0.9, 0.8]:
+	# 		# 平衡化
+	# 		batch = self.make_title(batch, "Calculating-Pre_" + str(round(r, 3)).replace('.', '_'))
+	# 		fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "_uin.udf"]
+	# 		time = [0.01, 5000000, 50000]
+	# 		f_eval = 1
+	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		self.step_nonbond_setup(template, pre, present_udf, time, r)
+	# 		pre = read_udf
+	# 		template = present_udf
+	# 	# KG 鎖に設定
+	# 	time = [0.01, 10000000, 100000]
+	# 	batch = self.make_title(batch, "Calculating-KG")
+	# 	fn_ext = ['KG_', "_uin.udf"]
+	# 	f_eval = 1
+	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 	self.kg_setup(template, pre, present_udf, time)
+	# 	pre = read_udf
+	# 	template = present_udf
+	# 	# 平衡化計算
+	# 	repeat = 4
+	# 	time = [0.01, 2000000, 5000]
+	# 	for i in range(repeat):
+	# 		# 平衡化
+	# 		batch = self.make_title(batch, "Calculating-Eq_" + str(i))
+	# 		fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
+	# 		f_eval = 1
+	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		self.eq_setup(template, pre, present_udf, time)
+	# 		pre = read_udf
+	# 		template = present_udf
+	# 	# グリーン久保
+	# 	repeat = 5
+	# 	time = [0.01, 20000000, 100000]
+	# 	for i in range(repeat):
+	# 		# 平衡化
+	# 		batch = self.make_title(batch, "Calculating-GK_" + str(i))
+	# 		fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
+	# 		f_eval = 1
+	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		self.greenkubo_setup(template, pre, present_udf, time)
+	# 		pre = read_udf
+	# 		template = present_udf
+	# 	return batch
 
 	######################################################################
 	# KG鎖の計算

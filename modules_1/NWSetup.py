@@ -10,25 +10,24 @@ import sys
 import os
 import pickle
 from multiprocessing import Pool
+from UDFManager import UDFManager
 ################################################################################
 class SelectSet:
-	def __init__(self, nw_cond, target_cond, rnd_cond):
+	def __init__(self, nw_cond, sim_cond, rnd_cond, target_dir):
 		self.nw_model = nw_cond[0]
 		self.strand = nw_cond[1]
 		self.n_strand = nw_cond[2]
 		self.n_segments = nw_cond[3]
 		self.n_cell = nw_cond[4]
 		self.n_sc = nw_cond[5]
-		# self.l_bond = nw_cond[6]
-		# self.c_n = nw_cond[7]
 
-		# self.target_cond = target_cond
-		self.multi = target_cond[0]
+		self.multi = sim_cond[1]
 
 		self.restart = rnd_cond[0] 
 		self.cond_top = rnd_cond[1]
 		self.n_hist = rnd_cond[2]
 
+		self.target_dir = target_dir
 	############################
 	def select_set(self):
 		# ネットワークを設定
@@ -751,6 +750,10 @@ class SelectSet:
 				data_list.append(selected_list[1])
 				count += 1
 			if len(val_list) == self.multi:
+				u = UDFManager(os.path.join(self.target_dir, 'target_condition.udf'))
+				u.put(random_dir, 'TargetCond.Model.RandomData')
+				u.put(val_list, 'TargetCond.Model.SelectedValue[]')
+				u.write()
 				with open(os.path.join(random_dir, 'selected_val.dat'), 'w') as f:
 					f.write("Selected arg. con.\n\n")
 					for i in val_list:
