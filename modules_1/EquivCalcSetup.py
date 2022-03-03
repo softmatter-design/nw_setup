@@ -207,14 +207,13 @@ class SetUpUDF:
 		pre = read_udf
 		template = present_udf
 		# 平衡化計算
-		time = [0.01, 500000, 1000]
-		for i in [1,2]:
+		for i in range(self.equilib_repeat):
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Eq_" + str(i))
 			fn_ext = ['Eq_' + str(i) + "_", "uin.udf"]
 			f_eval = 1
 			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
-			self.eq_setup(template, pre, present_udf, time)
+			self.eq_setup(template, pre, present_udf, self.equilib_time)
 			pre = read_udf
 			template = present_udf
 		# グリーン久保
@@ -273,14 +272,13 @@ class SetUpUDF:
 		pre = read_udf
 		template = present_udf
 		# 平衡化計算
-		time = [0.01, 200000, 1000]
-		for i in range(5):
+		for i in range(self.equilib_repeat):
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Eq_" + str(i))
 			fn_ext = ['Eq_' + str(i) + "_", "uin.udf"]
 			f_eval = 1
 			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
-			self.eq_setup(template, pre, present_udf, time)
+			self.eq_setup(template, pre, present_udf, self.equilib_time)
 			pre = read_udf
 			template = present_udf
 		# # グリーン久保
