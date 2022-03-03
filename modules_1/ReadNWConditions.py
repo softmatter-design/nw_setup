@@ -84,17 +84,17 @@ def makenewudf():
 	\\begin{data}
 		CalcCond:{"cognac112",1}
 TargetCond:{
-	{"Regular", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}50}}
+	{"Regular", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}100}}
 	{20, 0, 3}
 	{"Set", {1}{0.85}}
 	{"No", {"Density", {0.85}{1.0}}}
 	{"Entangled",
 		{[1.073,1.0,0.9,0.8]},
-		{2.0, [0.2,0.5,1.0,2.0,3.0,4.5], {1.0e-02,200000,1000}}
+		{2.0, [0.2,0.5,1.0,2.0,3.0,4.5], {1.0e-02,300000,2000}}
 		}
 	}
 SimulationCond:{
-	{4,{1.0e-02,200000,1000}}
+	{4,{1.0e-02,1000000,10000}}
 	0.97
 	}
 

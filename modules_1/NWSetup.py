@@ -484,7 +484,16 @@ class SelectSet:
 		#
 		random_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
 		random_dir += str(self.n_try) + "_trials_" + str(self.n_sampling) + "_sampling"
-		os.makedirs(random_dir, exist_ok = True)
+		if os.path.isdir(random_dir):
+			print("#####\nRandom Calculation target dir exists!!\n")
+			while True:
+				choice = input("overwrite? [y/N]:").lower
+				if choice in ['y', 'ye', 'yes']:
+					os.makedirs(random_dir, exist_ok = True)
+				else:
+					sys.exit('Bye now !')
+		else:
+			os.makedirs(random_dir, exist_ok = True)
 		#
 		candidate_list = self.strand_exchange()
 		#
