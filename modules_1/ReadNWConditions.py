@@ -133,7 +133,7 @@ class ReadCondSetup:
 			# 計算用のディレクトリーを作成
 			target_dir = self.make_dir()
 			nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc]
-			sim_cond = [self.entanglement, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.step_rfc, self.equilib_repeat, self.equilib_time]
+			sim_cond = [self.entanglement, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.press_time, self.step_rfc, self.equilib_repeat, self.equilib_time]
 			return basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir
 		else:
 			sys.exit("##### \nQuit !!")
@@ -225,10 +225,12 @@ class ReadCondSetup:
 			self.step_rfc = u.get('TargetCond.Entanglement.Entangled.Step_rfc[]')
 			self.expand = 1.0
 			self.step_press = []
+			self.press_time = []
 		elif self.entanglement == 'NO_Entangled':
 			self.step_rfc = []
 			self.expand = u.get('TargetCond.Entanglement.NO_Entangled.ExpansionRatio')
 			self.step_press = u.get('TargetCond.Entanglement.NO_Entangled.StepPress[]')
+			self.press_time = u.get('TargetCond.Entanglement.NO_Entangled.Time')
 		##########
 		## シミュレーションの条件
 		self.equilib_repeat = u.get('SimulationCond.Equilib_Condition.repeat')
@@ -388,6 +390,7 @@ class ReadCondSetup:
 		else:
 			text += "NPT 計算時の初期膨張率:\t\t" + str(self.expand) + "\n"
 			text += "ステップ圧力:\t" + ', '.join(map(str, self.step_press)) + "\n"
+			text += "圧力時間条件:\t\t" + ', '.join(map(str, self.press_time)) + "\n"
 		text += "#########################################" + "\n"
 		text += "ストランドの数密度:\t\t" + str(round(self.nu, 5)) + "\n"
 		text += "#########################################" + "\n"

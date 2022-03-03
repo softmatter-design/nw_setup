@@ -17,9 +17,10 @@ class SetUpUDF:
 		self.entanglement = sim_cond[0]
 		self.density = sim_cond[2]
 		self.step_press = sim_cond[5]
-		self.rfc = sim_cond[6]
-		self.equilib_repeat = sim_cond[7]
-		self.equilib_time = sim_cond[8]
+		self.press_time = sim_cond[6]
+		self.rfc = sim_cond[7]
+		self.equilib_repeat = sim_cond[8]
+		self.equilib_time = sim_cond[9]
 		#
 		self.target_dir = target_dir
 		self.f_eval_py = 'evaluate_all.py'
@@ -80,7 +81,7 @@ class SetUpUDF:
 		script = '#!/usr/bin/env python \n# -*- coding: utf-8 -*-\n'
 		script += '################################\n'
 		script += 'import os \nimport sys \n'
-		# if target == "chain":
+		script += 'sys.path.append("Z:/python_modules/") \n'
 		script += 'import EvaluateChain as ec\n'
 		script += '################################\n'
 		# script += 'ec = EvaluateChain.EvaluateAll()\n'
@@ -101,8 +102,8 @@ class SetUpUDF:
 		return batch
 
 	# ファイル名の処理
-	def make_step(self, time, fn_ext, batch, f_eval):
-		present_udf = fn_ext[0] + self.target_dir + fn_ext[1]
+	def make_step(self, fn_ext, batch, f_eval):
+		present_udf = fn_ext[0] + fn_ext[1]
 		out_udf = present_udf.replace("uin", "out")
 		batch += self.ver_cognac + ' -I ' + present_udf + ' -O ' + out_udf + self.core + ' \n'
 		if f_eval:
@@ -119,10 +120,10 @@ class SetUpUDF:
 	# 	# Force Capped LJ によりステップワイズに初期化
 	# 	r = 0.9558*2**(1/6)
 	# 	batch = self.make_title(batch, "Calculating-Init")
-	# 	fn_ext = ['Init_', '_uin.udf']
+	# 	fn_ext = ['Init_', 'uin.udf']
 	# 	time = [0.001, 1000000, 10000]
 	# 	f_eval = 1
-	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 	# 	self.step_nonbond_setup(self.base_udf, 'random', present_udf, time, r)
 	# 	pre = read_udf
 	# 	template = present_udf
@@ -130,19 +131,19 @@ class SetUpUDF:
 	# 	for r in [1.0, 0.9, 0.8]:
 	# 		# 平衡化
 	# 		batch = self.make_title(batch, "Calculating-Pre_" + str(round(r, 3)).replace('.', '_'))
-	# 		fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "_uin.udf"]
+	# 		fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "uin.udf"]
 	# 		time = [0.01, 5000000, 50000]
 	# 		f_eval = 1
-	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 	# 		self.step_nonbond_setup(template, pre, present_udf, time, r)
 	# 		pre = read_udf
 	# 		template = present_udf
 	# 	# KG 鎖に設定
 	# 	time = [0.01, 10000000, 100000]
 	# 	batch = self.make_title(batch, "Calculating-KG")
-	# 	fn_ext = ['KG_', "_uin.udf"]
+	# 	fn_ext = ['KG_', "uin.udf"]
 	# 	f_eval = 1
-	# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 	# 	self.kg_setup(template, pre, present_udf, time)
 	# 	pre = read_udf
 	# 	template = present_udf
@@ -152,9 +153,9 @@ class SetUpUDF:
 	# 	for i in range(repeat):
 	# 		# 平衡化
 	# 		batch = self.make_title(batch, "Calculating-Eq_" + str(i))
-	# 		fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
+	# 		fn_ext = ['Eq_' + str(i) + "_", "uin.udf"]
 	# 		f_eval = 1
-	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 	# 		self.eq_setup(template, pre, present_udf, time)
 	# 		pre = read_udf
 	# 		template = present_udf
@@ -164,9 +165,9 @@ class SetUpUDF:
 	# 	for i in range(repeat):
 	# 		# 平衡化
 	# 		batch = self.make_title(batch, "Calculating-GK_" + str(i))
-	# 		fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
+	# 		fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
 	# 		f_eval = 1
-	# 		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+	# 		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 	# 		self.greenkubo_setup(template, pre, present_udf, time)
 	# 		pre = read_udf
 	# 		template = present_udf
@@ -178,10 +179,10 @@ class SetUpUDF:
 		# Force Capped LJ によりステップワイズに初期化
 		r = 1.1
 		batch = self.make_title(batch, "Calculating-Init")
-		fn_ext = ['Init_', "_uin.udf"]
+		fn_ext = ['Init_', "uin.udf"]
 		time = [0.001, 100000, 1000]
 		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.step_nonbond_setup(self.base_udf, '', present_udf, time, r)
 		pre = read_udf
 		template = present_udf
@@ -189,19 +190,19 @@ class SetUpUDF:
 		for r in [0.9558*2**(1/6), 1.0, 0.9, 0.8]:
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Pre_" + str(round(r, 3)).replace('.', '_'))
-			fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "_uin.udf"]
+			fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "uin.udf"]
 			time = [0.01, 1000000, 10000]
 			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 			self.step_nonbond_setup(template, pre, present_udf, time, r)
 			pre = read_udf
 			template = present_udf
 		# KG 鎖に設定
 		time = [0.01, 1000000, 10000]
 		batch = self.make_title(batch, "Calculating-KG")
-		fn_ext = ['KG_', "_uin.udf"]
+		fn_ext = ['KG_', "uin.udf"]
 		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.kg_setup(template, pre, present_udf, time)
 		pre = read_udf
 		template = present_udf
@@ -210,9 +211,9 @@ class SetUpUDF:
 		for i in [1,2]:
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Eq_" + str(i))
-			fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
+			fn_ext = ['Eq_' + str(i) + "_", "uin.udf"]
 			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 			self.eq_setup(template, pre, present_udf, time)
 			pre = read_udf
 			template = present_udf
@@ -222,9 +223,9 @@ class SetUpUDF:
 		# for i in range(repeat):
 		# 	# 平衡化
 		# 	batch = self.make_title(batch, "Calculating-GK_" + str(i))
-		# 	fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
+		# 	fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
 		# 	f_eval = 1
-		# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		# 	self.greenkubo_setup(template, pre, present_udf, time)
 		# 	pre = read_udf
 		# 	template = present_udf
@@ -236,38 +237,38 @@ class SetUpUDF:
 		# NPTの設定
 		pres = 0.05
 		batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
-		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "_uin.udf"]
+		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
 		time = [0.001, 20000, 200]
 		f_eval = 0
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.npt_setup(self.base_udf, '', present_udf, time, pres)
 		pre = read_udf
 		template = present_udf
 		# ステップワイズに圧力増加
 		for pres in self.step_press:
 			batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
-			fn_ext = ['Compress_pres_' + str(pres).replace('.', '_') + '_', "_uin.udf"]
-			time = [0.01, 100000, 1000]
+			fn_ext = ['Compress_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
+			time = self.press_time 
 			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 			self.npt_setup(template, pre, present_udf, time, pres)
 			pre = read_udf
 			template = present_udf
 		# KG 鎖への遷移
 		time = [0.01, 1000, 100]
 		batch = self.make_title(batch, "Calculating-pre_KG")
-		fn_ext = ['PreKG_', "_uin.udf"]
+		fn_ext = ['PreKG_', "uin.udf"]
 		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.pre_kg_setup(template, pre, present_udf, time)
 		pre = read_udf
 		template = present_udf
 		# KG 鎖に設定
 		time = [0.01, 100000, 1000]
 		batch = self.make_title(batch, "Calculating-KG")
-		fn_ext = ['SetupKG_', "_uin.udf"]
+		fn_ext = ['SetupKG_', "uin.udf"]
 		f_eval = 1
-		present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.kg_setup(template, pre, present_udf, time)
 		pre = read_udf
 		template = present_udf
@@ -276,9 +277,9 @@ class SetUpUDF:
 		for i in range(5):
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Eq_" + str(i))
-			fn_ext = ['Eq_' + str(i) + "_", "_uin.udf"]
+			fn_ext = ['Eq_' + str(i) + "_", "uin.udf"]
 			f_eval = 1
-			present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 			self.eq_setup(template, pre, present_udf, time)
 			pre = read_udf
 			template = present_udf
@@ -288,9 +289,9 @@ class SetUpUDF:
 		# for i in range(repeat):
 		# 	# 平衡化
 		# 	batch = self.make_title(batch, "Calculating-GK_" + str(i))
-		# 	fn_ext = ['GK_' + str(i) + "_", "_uin.udf"]
+		# 	fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
 		#	f_eval = 1
-		# 	present_udf, read_udf, batch = self.make_step(time, fn_ext, batch, f_eval)
+		# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		# 	self.greenkubo_setup(template, pre, present_udf, time)
 		# 	pre = read_udf
 		# 	template = present_udf
