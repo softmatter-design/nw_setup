@@ -234,10 +234,10 @@ class SetUpUDF:
 	# NPT 条件で、設定密度まで圧縮
 	def npt_calc(self, batch):
 		# NPTの設定
-		pres = 0.05
+		pres = 0.01
 		batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
 		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
-		time = [0.001, 20000, 200]
+		time = [0.001, 10000, 100]
 		f_eval = 0
 		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.npt_setup(self.base_udf, '', present_udf, time, pres)
@@ -442,6 +442,7 @@ class SetUpUDF:
 		u.put([read_udf, -1, 0, 0], p+'Restart')
 		p = 'Initial_Structure.Relaxation.'
 		u.put(1, p + 'Relaxation')
+		u.put(100.0, p + 'Max_Relax_Force')
 		#--- Simulation_Conditions ---
 		# Bond
 		for i, bondname in enumerate(self.bond_name):
@@ -583,7 +584,7 @@ class SetUpUDF:
 		p = 'Initial_Structure.Relaxation.'
 		u.put(1, p + 'Relaxation')
 		u.put('DYNAMICS', p + 'Method')
-		u.put(200, p + 'Max_Relax_Force')
+		u.put(100, p + 'Max_Relax_Force')
 		u.put(10000, p + 'Max_Relax_Steps')
 		#--- Simulation_Conditions ---
 		# Bond
