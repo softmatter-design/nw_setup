@@ -4,6 +4,7 @@
 import os
 import sys
 import codecs
+import numpy as np
 from UDFManager import UDFManager
 #######################################################
 #
@@ -64,7 +65,8 @@ def makenewudf():
 				} "ストランドを自然長から圧縮するかどうかを設定"
 			Entanglement:{
 				Type:select{"Entangled", "NO_Entangled"} "ネットワーク・トポロジーを選択",
-					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入るように初期化",
+					Entangled:{Step_rfc[]: float "Slow Push Off での rfc 条件",
+						Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "時間条件を入力"} "密度、末端間距離を設定値に合わせるように多重度を自動設定。\\n絡み合いが入るように初期化",
 					NO_Entangled:{
 						ExpansionRatio: float "NPT 計算での初期膨張率", 
 						StepPress[]: float "NPT 計算での圧力変化",
@@ -74,9 +76,16 @@ def makenewudf():
 			} "計算ターゲットの条件を設定"
 		SimulationCond:{
 			Equilib_Condition:{
-					repeat: int "平衡化計算の繰り返し数",
+					Repeat: int "平衡化計算の繰り返し数",
 					Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "平衡化計算の時間条件を入力"
 				} "平衡化計算の時間条件を入力",
+			GreenKubo:{
+				Calc:select{"Yes", "No"},
+				Yes:{
+					Repeat:int "計算の繰り返し数",
+					Time:{delta_T: double, Total_Steps: int, Output_Interval_Steps: int} "時間条件を入力"
+					} "GreenKubo により、応力緩和関数を計算するかどうかを決める。"
+				}
 			l_bond: float "シミュレーションでのボンドの自然長"
 			} "シミュレーションの条件を設定"
 	\end{def}
@@ -89,12 +98,13 @@ TargetCond:{
 	{"Set", {1}{0.85}}
 	{"No", {"Density", {0.85}{1.0}}}
 	{"Entangled",
-		{[1.073,1.0,0.9,0.8]},
+		{[1.073,1.0,0.9,0.8], {1.0e-02,300000,2000}},
 		{2.0, [0.2,0.5,1.0,2.0,3.0,4.5], {1.0e-02,300000,2000}}
 		}
 	}
 SimulationCond:{
 	{4,{1.0e-02,1000000,10000}}
+	{"Yes",{5,{1.0e-03,1000000,10000}}}
 	0.97
 	}
 
@@ -133,7 +143,7 @@ class ReadCondSetup:
 			# 計算用のディレクトリーを作成
 			target_dir = self.make_dir()
 			nw_cond = [self.nw_model, self.strand, self.n_strand, self.n_segments, self.n_cell, self.n_sc]
-			sim_cond = [self.entanglement, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.press_time, self.step_rfc, self.equilib_repeat, self.equilib_time]
+			sim_cond = [self.entanglement, self.multi, self.density, self.shrinkage, self.expand, self.step_press, self.press_time, self.step_rfc, self.step_rfc_time, self.equilib_repeat, self.equilib_time, self.greenkubo_repeat, self.greenkubo_time]
 			return basic_cond, nw_cond, sim_cond, rnd_cond, target_cond, target_dir
 		else:
 			sys.exit("##### \nQuit !!")
@@ -161,8 +171,8 @@ class ReadCondSetup:
 		self.nw_model = u.get('TargetCond.Model.TargetModel')
 		###################
 		## Networkモデルの設定
-		restart = ''
-		cond_top = []
+		self.restart = ''
+		self.cond_top = []
 		n_hist = 0
 		#
 		if self.nw_model == "Regular":
@@ -192,15 +202,15 @@ class ReadCondSetup:
 			self.calc = u.get('TargetCond.Model.Random.Calc_Topolpgy')
 			n_hist = u.get('TargetCond.Model.Random.N_histgram')
 			if self.calc == 'Read':
-				restart = u.get('TargetCond.Model.Random.Read.dir_name')
-				if not os.path.exists(os.path.join(restart, 'init.pickle')):
+				self.restart = u.get('TargetCond.Model.Random.Read.dir_name')
+				if not os.path.exists(os.path.join(self.restart, 'init.pickle')):
 					exit("##########\ntarget directory does not exists.")
-				elif self.n_strand != int(restart.split('_')[0]):
+				elif self.n_strand != int(self.restart.split('_')[0]):
 					sys.exit("##########\nnumber of strands: selected n_strand is different from original Calculation.")
-				elif self.n_cell != int(restart.split('_')[2]):
+				elif self.n_cell != int(self.restart.split('_')[2]):
 					sys.exit("##########\nnumber of cells: selected n_cell is different from original Calculation.")
 			elif self.calc == 'Calc':
-				cond_top = u.get('TargetCond.Model.Random.Calc')
+				self.cond_top = u.get('TargetCond.Model.Random.Calc')
 		###################
 		## 多重度の設定
 		if u.get('TargetCond.Multiplisity.Set_or_Calc') == 'Set':
@@ -223,18 +233,27 @@ class ReadCondSetup:
 		self.entanglement = u.get('TargetCond.Entanglement.Type')
 		if self.entanglement == 'Entangled':
 			self.step_rfc = u.get('TargetCond.Entanglement.Entangled.Step_rfc[]')
+			self.step_rfc_time = u.get('TargetCond.Entanglement.Entangled.Time')
 			self.expand = 1.0
 			self.step_press = []
 			self.press_time = []
 		elif self.entanglement == 'NO_Entangled':
 			self.step_rfc = []
+			self.step_rfc_time = []
 			self.expand = u.get('TargetCond.Entanglement.NO_Entangled.ExpansionRatio')
-			self.step_press = u.get('TargetCond.Entanglement.NO_Entangled.StepPress[]')
+			self.step_press = np.round(np.array(u.get('TargetCond.Entanglement.NO_Entangled.StepPress[]')), 5)
 			self.press_time = u.get('TargetCond.Entanglement.NO_Entangled.Time')
 		##########
 		## シミュレーションの条件
-		self.equilib_repeat = u.get('SimulationCond.Equilib_Condition.repeat')
+		self.equilib_repeat = u.get('SimulationCond.Equilib_Condition.Repeat')
 		self.equilib_time = u.get('SimulationCond.Equilib_Condition.Time')
+		#####
+		self.greenkubo = u.get('SimulationCond.GreenKubo.Calc')
+		self.greenkubo_repeat = 0
+		self.greenkubo_time = []
+		if self.greenkubo == 'Yes':
+			self.greenkubo_repeat = u.get('SimulationCond.GreenKubo.Yes.Repeat')
+			self.greenkubo_time = u.get('SimulationCond.GreenKubo.Yes.Time')
 		#####
 		self.l_bond = u.get('SimulationCond.l_bond')
 		#####
@@ -248,7 +267,7 @@ class ReadCondSetup:
 			self.c_n = 1.75
 		#########################################################################################
 		
-		rnd_cond = [restart, cond_top, n_hist]
+		rnd_cond = [self.restart, self.cond_top, n_hist]
 
 		return basic_cond, rnd_cond
 
@@ -356,13 +375,17 @@ class ReadCondSetup:
 			sys.exit("Something Wrong!!")
 		#
 		text = "#########################################" + "\n"
+		text += "計算に使用するコア数\t\t" + str(self.core ) + "\n"
+		text += "#########################################" + "\n"
 		text += "ネットワークトポロジー\t\t" + str(self.nw_model) + "\n"
+		text += "ネットワークモデル\t\t" + str(self.strand) + "\n"
 		if self.nw_model == "Random":
 			if self.calc == 'Read':
 				text += "\t** 過去の計算を読み込み **\n"
+				text += "Directory:" + str(self.restart) + "\n"
 			elif self.calc == 'Calc':
 				text += "\t** ランダム構造を計算 **\n"
-		text += "ネットワークモデル\t\t" + str(self.strand) + "\n"
+				text += "ランダム構造の計算条件\t" + str(self.cond_top) + "\n"
 		text += "#########################################" + "\n"
 		text += "ストランド中のセグメント数:\t" + str(self.n_segments) + "\n"
 		text += "特性比:\t\t\t\t" + str(round(self.c_n, 2)) + "\n"
@@ -386,11 +409,18 @@ class ReadCondSetup:
 		text += "#########################################" + "\n"
 		text += "絡み合いの有無:\t\t\t" + str(self.entanglement) + "\n"
 		if self.entanglement == 'Entangled':
-			text += "Slow Push Off での rfc 条件: " + ', '.join(map(str, self.step_rfc)) + "\n"
+			text += "Slow Push Off 条件: " + ', '.join(map(str, self.step_rfc)) + "\n"
+			text += "Slow Push Off 時間条件: " + str(self.step_rfc_time) + "\n"
 		else:
 			text += "NPT 計算時の初期膨張率:\t\t" + str(self.expand) + "\n"
 			text += "ステップ圧力:\t" + ', '.join(map(str, self.step_press)) + "\n"
-			text += "圧力時間条件:\t\t" + ', '.join(map(str, self.press_time)) + "\n"
+			text += "圧力時間条件:\t\t" + str(self.press_time) + "\n"
+		text += "#########################################" + "\n"
+		text += "平衡化計算繰り返し:\t\t" + str(self.equilib_repeat) + "\n"
+		text += "平衡化時間条件:\t\t" + str(self.equilib_time ) + "\n"
+		if self.greenkubo == 'Yes':
+			text += "応力緩和計算繰り返し:\t\t" + str(self.greenkubo_repeat) + "\n"
+			text += "応力緩和時間条件:\t" + str(self.greenkubo_time) + "\n"
 		text += "#########################################" + "\n"
 		text += "ストランドの数密度:\t\t" + str(round(self.nu, 5)) + "\n"
 		text += "#########################################" + "\n"

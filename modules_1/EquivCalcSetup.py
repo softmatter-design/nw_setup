@@ -19,8 +19,11 @@ class SetUpUDF:
 		self.step_press = sim_cond[5]
 		self.press_time = sim_cond[6]
 		self.rfc = sim_cond[7]
-		self.equilib_repeat = sim_cond[8]
-		self.equilib_time = sim_cond[9]
+		self.rfc_time = sim_cond[8]
+		self.equilib_repeat = sim_cond[9]
+		self.equilib_time = sim_cond[10]
+		self.greenkubo_repeat = sim_cond[11]
+		self.greenkubo_time = sim_cond[12]
 		#
 		self.target_dir = target_dir
 		self.f_eval_py = 'evaluate_all.py'
@@ -191,10 +194,9 @@ class SetUpUDF:
 			# 平衡化
 			batch = self.make_title(batch, "Calculating-Pre_" + str(round(r, 3)).replace('.', '_'))
 			fn_ext = ['Pre_rfc_' + str(round(r, 3)).replace('.', '_') + "_", "uin.udf"]
-			time = [0.01, 1000000, 10000]
 			f_eval = 1
 			present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
-			self.step_nonbond_setup(template, pre, present_udf, time, r)
+			self.step_nonbond_setup(template, pre, present_udf, self.rfc_time, r)
 			pre = read_udf
 			template = present_udf
 		# KG 鎖に設定
@@ -217,24 +219,23 @@ class SetUpUDF:
 			pre = read_udf
 			template = present_udf
 		# グリーン久保
-		# repeat = 5
-		# time = [0.01, 20000000, 1000000]
-		# for i in range(repeat):
-		# 	# 平衡化
-		# 	batch = self.make_title(batch, "Calculating-GK_" + str(i))
-		# 	fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
-		# 	f_eval = 1
-		# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
-		# 	self.greenkubo_setup(template, pre, present_udf, time)
-		# 	pre = read_udf
-		# 	template = present_udf
+		if self.greenkubo_repeat != 0:
+			for i in range(self.greenkubo_repeat):
+				# 平衡化
+				batch = self.make_title(batch, "Calculating-GK_" + str(i))
+				fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
+				f_eval = 1
+				present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
+				self.greenkubo_setup(template, pre, present_udf, self.greenkubo_time)
+				pre = read_udf
+				template = present_udf
 		return batch
 
 	###########################################
 	# NPT 条件で、設定密度まで圧縮
 	def npt_calc(self, batch):
 		# NPTの設定
-		pres = 0.01
+		pres = self.step_press[0]
 		batch = self.make_title(batch, "Calculating-Ini_pres_" + str(pres).replace('.', '_'))
 		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
 		time = [0.001, 1000, 100]
@@ -281,18 +282,18 @@ class SetUpUDF:
 			self.eq_setup(template, pre, present_udf, self.equilib_time)
 			pre = read_udf
 			template = present_udf
-		# # グリーン久保
-		# repeat = 3
-		# time = [0.01, 2000000, 100000]
-		# for i in range(repeat):
-		# 	# 平衡化
-		# 	batch = self.make_title(batch, "Calculating-GK_" + str(i))
-		# 	fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
-		#	f_eval = 1
-		# 	present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
-		# 	self.greenkubo_setup(template, pre, present_udf, time)
-		# 	pre = read_udf
-		# 	template = present_udf
+		# グリーン久保
+		if self.greenkubo_repeat != 0:
+			for i in range(self.greenkubo_repeat):
+				# 平衡化
+				batch = self.make_title(batch, "Calculating-GK_" + str(i))
+				fn_ext = ['GK_' + str(i) + "_", "uin.udf"]
+				f_eval = 1
+				present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
+				self.greenkubo_setup(template, pre, present_udf, self.greenkubo_time)
+				pre = read_udf
+				template = present_udf
+
 		return batch
 
 ###############
