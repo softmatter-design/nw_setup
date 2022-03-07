@@ -235,17 +235,17 @@ class SetUpUDF:
 	def npt_calc(self, batch):
 		# NPTの設定
 		pres = 0.01
-		batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
+		batch = self.make_title(batch, "Calculating-Ini_pres_" + str(pres).replace('.', '_'))
 		fn_ext = ['Init_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
-		time = [0.001, 10000, 100]
+		time = [0.001, 1000, 100]
 		f_eval = 0
 		present_udf, read_udf, batch = self.make_step(fn_ext, batch, f_eval)
 		self.npt_setup(self.base_udf, '', present_udf, time, pres)
 		pre = read_udf
 		template = present_udf
 		# ステップワイズに圧力増加
-		for pres in self.step_press:
-			batch = self.make_title(batch, "Calculating-Ini_NPT_" + str(pres).replace('.', '_'))
+		for pres in self.step_press[1:]:
+			batch = self.make_title(batch, "Calculating-Compress_" + str(pres).replace('.', '_'))
 			fn_ext = ['Compress_pres_' + str(pres).replace('.', '_') + '_', "uin.udf"]
 			time = self.press_time 
 			f_eval = 1
