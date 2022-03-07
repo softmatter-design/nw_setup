@@ -69,7 +69,7 @@ class SelectSet:
 		jp_xyz, strand_se_xyz = self.calc_jp_strands()
 		#
 		calcd_data_dic = self.set_atom(jp_xyz, strand_se_xyz)
-		
+		# print(len(calcd_data_dic))
 		return calcd_data_dic
 	##########################################
 	# JPおよびサブチェインの始点と終点のXYZを設定
@@ -243,12 +243,14 @@ class SelectSet:
 	#########################################################
 	def set_atom(self, jp_xyz, strand_se_xyz):
 		calcd_data_dic={}
-		for i in (range(self.multi)):
+		for mul in (range(self.multi)):
+			# atom_all = []
+			# pos_all = {}
 			for mol, jp in enumerate(jp_xyz):
 				atom_all = []
 				pos_all = {}
 				# システム全体にわたるジャンクションポイントのxyzとIDの辞書を作成
-				jp_id_dic, jp_xyz_dic, atom_jp = self.set_jp_id_reg(jp, mol)
+				jp_id_dic, jp_xyz_dic, atom_jp = self.set_jp_id_reg(jp)
 				atom_all.extend(atom_jp)
 				pos_all.update(jp_xyz_dic)
 				# print(jp_xyz_dic)
@@ -258,12 +260,12 @@ class SelectSet:
 				atom_all.extend(atom_sc)
 				pos_all.update(strand_xyz)
 				#
-				calcd_data_dic[i] = {"atom_all":atom_all, "bond_all":bond_all, "pos_all":pos_all, "angle_all":angle_all}
+				calcd_data_dic[mul+mol] = {"atom_all":atom_all, "bond_all":bond_all, "pos_all":pos_all, "angle_all":angle_all}
 		return calcd_data_dic
 
 	###################################################
 	# システム全体にわたるJPのxyzとIDの辞書を作成
-	def set_jp_id_reg(self, jp_xyz, mol):
+	def set_jp_id_reg(self, jp_xyz):
 		jp_id_dic = {}
 		jp_xyz_dic = {}
 		atom_jp = []
@@ -275,7 +277,7 @@ class SelectSet:
 					for jp in jp_xyz:
 						jp_id_dic[tuple(np.array(jp) + base_xyz)] = (jp_id)
 						jp_xyz_dic[(jp_id)] = tuple(np.array(jp) + base_xyz)
-						atom_jp.append([jp_id, 2*mol + 0, 0])
+						atom_jp.append([jp_id, 0, 0])
 						jp_id += 1
 		return jp_id_dic, jp_xyz_dic, atom_jp
 
