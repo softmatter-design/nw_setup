@@ -489,9 +489,10 @@ class SelectSet:
 		if os.path.isdir(random_dir):
 			print("#####\nRandom Calculation target dir exists!!\n")
 			while True:
-				choice = input("overwrite? [y/N]:").lower
+				choice = input("overwrite? [y/N]:").lower()
 				if choice in ['y', 'ye', 'yes']:
 					os.makedirs(random_dir, exist_ok = True)
+					break
 				else:
 					sys.exit('Bye now !')
 		else:
@@ -513,18 +514,22 @@ class SelectSet:
 	#####################################################
 	# 任意のストランドを選択し、ストランドの繋ぎ変えを行う
 	def strand_exchange(self):
-		self.tmp_list = []
+		tmp_list = []
 		final_list = []
 		# p = Pool(multiprocessing.cpu_count() - 4)
 		p = Pool(self.f_pool)
 		result = p.map(self.pre_search, range(self.pre_sampling))
 		for i in result:
-			self.tmp_list.extend(i)
+			tmp_list.extend(i)
 		print("##################################################")
-		print("Pre_Search Result:", len(self.tmp_list))
+		print("Pre_Search Result:", len(tmp_list))
 		print("##################################################")
 		#
-		result = p.map(self.search_second, range(self.n_sampling))
+		dic_list = []
+		for i in range(self.n_sampling):
+			dic_list.append((random.choice(tmp_list)[1], i))
+		result = p.map(self.search_second, dic_list)
+		
 		for i in result:
 			final_list.extend(i)
 
@@ -587,8 +592,9 @@ class SelectSet:
 
 	########################################################
 	# ストランドの繋ぎ変えを行う
-	def search_second(self, x):
-		dic = random.choice(self.tmp_list)[1]
+	def search_second(self, input):
+		dic, x = input
+		# dic = random.choice(tmp_list)[1]
 		alg_const = self.calc_lap_mat(dic)
 		print("Sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
 		#
@@ -782,18 +788,25 @@ class SelectSet:
 		index = np.where(val == max(val))[0][0]
 		f_range = 0
 		value = 0
-		while value < self.multi:
-			value = 0
-			f_range += 1
-			for i in range(2*f_range + 1):
-				if val[index - f_range + i] != 0:
-					value += 1
-		val_range = [ x[index - f_range], x[index + f_range] ]
-		print("##################################################")
-		print("Most frequent range = ", round(val_range[0], 5), " to ", round(val_range[1], 5))
-		key = input("OK? input y or n: ")
-		if key == 'y' or key == 'Y':
-			pass
+		if index < len(val) -1:
+			while value < self.multi:
+				value = 0
+				f_range += 1
+				for i in range(2*f_range + 1):
+					if val[index - f_range + i] != 0:
+						value += 1
+			val_range = [ x[index - f_range], x[index + f_range] ]
+			print("##################################################")
+			print("Most frequent range = ", round(val_range[0], 5), " to ", round(val_range[1], 5))
+			key = input("OK? input y or n: ")
+			if key == 'y' or key == 'Y':
+				pass
+			else:
+				print("##################################################")
+				print("Input new range:")
+				low = float(input("low=: "))
+				high = float(input("high=: "))
+				val_range = list([low, high])
 		else:
 			print("##################################################")
 			print("Input new range:")
