@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ################################################################################
+from ast import arg
 import numpy as np
 import copy
 import random
@@ -478,10 +479,10 @@ class SelectSet:
 		self.init_dic = self.base_top_list[0]
 		self.n_jp = self.base_top_list[3]
 		#
-		self.pre_try = self.cond_top[0] 
-		self.pre_sampling = self.cond_top[1]
-		self.n_try = self.cond_top[2]
-		self.n_sampling = self.cond_top[3]
+		self.pre_sampling = self.cond_top[0]
+		self.pre_try = self.cond_top[1] 
+		self.n_sampling = self.cond_top[2]
+		self.n_try = self.cond_top[3]
 		self.f_pool = self.cond_top[4]
 		#
 		random_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
@@ -515,25 +516,94 @@ class SelectSet:
 	# 任意のストランドを選択し、ストランドの繋ぎ変えを行う
 	def strand_exchange(self):
 		tmp_list = []
-		final_list = []
-		# p = Pool(multiprocessing.cpu_count() - 4)
 		p = Pool(self.f_pool)
-		result = p.map(self.pre_search, range(self.pre_sampling))
-		for i in result:
-			tmp_list.extend(i)
+		#
+		args = [[self.random_reduce(), i] for i in range(self.pre_sampling)] 
+		result = p.map(self.search_second, args)
+		for data in result:
+			tmp_list.extend(data)
 		print("##################################################")
 		print("Pre_Search Result:", len(tmp_list))
 		print("##################################################")
 		#
-		dic_list = []
-		for i in range(self.n_sampling):
-			dic_list.append((random.choice(tmp_list)[1], i))
-		result = p.map(self.search_second, dic_list)
-		
-		for i in result:
-			final_list.extend(i)
+		for i in range(10):
+			args = [[random.choice(tmp_list)[0], i] for i in range(self.n_sampling)] 
+			result = p.map(self.search_second, args)
+			tmp_list = []
+			for data in result:
+				tmp_list.extend(data)
+			print("##################################################")
+			print("Search Result:", len(tmp_list))
+			print("##################################################")
 
-		return final_list
+		return tmp_list
+
+	########################################################
+	# ストランドの繋ぎ変えを行う
+	def pre_search(self, args):
+		dic, x = args
+		alg_const = self.calc_lap_mat(dic)
+		print("pre_sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
+		#
+		result = []
+		count = 0
+		failed = 0
+		show = 5
+		while count < self.pre_try:
+			# 現状のストランドのリストの中からランダムに一つ選択し、"selected_strand"とする。
+			selected_strand = random.choice(list(dic.keys()))
+			# 繋ぎ変え得るストランドのリストを現状のネットワークと比較して、交換可能なセットを見つける。
+			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
+			if alg_const != 0:
+				count += 1
+				result.append([tmp_dic, alg_const])
+				failed = 0
+				if count != 0 and round(show*count/self.pre_try) == show*count//self.pre_try and round(show*count/self.pre_try) == -(-show*count//self.pre_try):
+					print("pre_sampling ID =", x, "count = ", count)
+			else:
+				failed +=1
+			if failed >= self.pre_try:
+				print("##########################################")
+				print("pre_sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
+				print("##########################################")
+				count = self.pre_try
+				failed = 0
+		# 
+		return result
+
+
+	########################################################
+	# ストランドの繋ぎ変えを行う
+	def search_second(self, args):
+		dic, x = args
+		alg_const = self.calc_lap_mat(dic)
+		print("Sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
+		#
+		result = []
+		count = 0
+		failed = 0
+		show = 5
+		while count < self.n_try:
+			# 現状のストランドのリストの中からランダムに一つ選択し、"selected_strand"とする。
+			selected_strand = random.choice(list(dic.keys()))
+			# 繋ぎ変え得るストランドのリストを現状のネットワークと比較して、交換可能なセットを見つける。
+			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
+			if alg_const != 0:
+				count += 1
+				result.append([tmp_dic, alg_const])
+				failed = 0
+				if count != 0 and round(show*count/self.n_try) == show*count//self.n_try and round(show*count/self.n_try) == -(-show*count//self.n_try):
+					print("Sampling ID =", x, "count = ", count)
+			else:
+				failed +=1
+			if failed >= self.n_try:
+				print("##########################################")
+				print("Sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
+				print("##########################################")
+				count = self.n_try
+				failed = 0
+		# 
+		return result
 
 	#########################################################
 	# 任意のストランドを選択し、所望の分岐数にストランドを消去
@@ -556,73 +626,7 @@ class SelectSet:
 			#
 			if alg_const_init > alg_const:
 				flag = 0
-		return tmp_dic, alg_const
-
-	########################################################
-	# ストランドの繋ぎ変えを行う
-	def pre_search(self, x):
-		dic, alg_const = self.random_reduce()
-		print("pre_sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
-		#
-		result = []
-		count = 0
-		failed = 0
-		show = 5
-		while count < self.pre_try:
-			# 現状のストランドのリストの中からランダムに一つ選択し、"selected_strand"とする。
-			selected_strand = random.choice(list(dic.keys()))
-			# 繋ぎ変え得るストランドのリストを現状のネットワークと比較して、交換可能なセットを見つける。
-			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
-			if alg_const != 0:
-				count += 1
-				result.append([alg_const, tmp_dic])
-				failed = 0
-				if count != 0 and round(show*count/self.pre_try) == show*count//self.pre_try and round(show*count/self.pre_try) == -(-show*count//self.pre_try):
-					print("pre_sampling ID =", x, "count = ", count)
-			else:
-				failed +=1
-			if failed >= self.pre_try:
-				print("##########################################")
-				print("pre_sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
-				print("##########################################")
-				count = self.pre_try
-				failed = 0
-		# 
-		return result
-
-	########################################################
-	# ストランドの繋ぎ変えを行う
-	def search_second(self, input):
-		dic, x = input
-		# dic = random.choice(tmp_list)[1]
-		alg_const = self.calc_lap_mat(dic)
-		print("Sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
-		#
-		result = []
-		count = 0
-		failed = 0
-		show = 5
-		while count < self.n_try:
-			# 現状のストランドのリストの中からランダムに一つ選択し、"selected_strand"とする。
-			selected_strand = random.choice(list(dic.keys()))
-			# 繋ぎ変え得るストランドのリストを現状のネットワークと比較して、交換可能なセットを見つける。
-			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
-			if alg_const != 0:
-				count += 1
-				result.append([alg_const, tmp_dic])
-				failed = 0
-				if count != 0 and round(show*count/self.n_try) == show*count//self.n_try and round(show*count/self.n_try) == -(-show*count//self.n_try):
-					print("Sampling ID =", x, "count = ", count)
-			else:
-				failed +=1
-			if failed >= self.n_try:
-				print("##########################################")
-				print("Sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
-				print("##########################################")
-				count = self.n_try
-				failed = 0
-		# 
-		return result
+		return tmp_dic
 
 	################################################################
 	# 交換可能なストランドのペアを見つける
@@ -747,7 +751,7 @@ class SelectSet:
 		data_list = []
 
 		# ヒストグラムを作成
-		histdata = list(np.array(candidate_list)[:,0])
+		histdata = list(np.array(candidate_list)[:, 1])
 		cond = ["", histdata, self.n_hist, "True", ['Arg. Con.', 'Freq.']]
 		x, val = self.make_hist_all(cond, random_dir)
 
@@ -755,7 +759,7 @@ class SelectSet:
 		val_range = self.find_range(x, val)
 		# 上記のレンジに入る配列をピックアップ
 		for i in candidate_list:
-			if i[0] >= val_range[0] and i[0] <= val_range[1]:
+			if i[1] >= val_range[0] and i[1] <= val_range[1]:
 				tmp_list.append(i)
 		random.shuffle(tmp_list)
 		# 
@@ -763,8 +767,8 @@ class SelectSet:
 		for i, selected_list in enumerate(tmp_list):
 			# print(i, count, selected_list[0], val_list)
 			if selected_list[0] not in val_list:
-				val_list.append(selected_list[0])
-				data_list.append(selected_list[1])
+				val_list.append(selected_list[1])
+				data_list.append(selected_list[0])
 				count += 1
 			if len(val_list) == self.multi:
 				u = UDFManager(os.path.join(self.target_dir, 'target_condition.udf'))
