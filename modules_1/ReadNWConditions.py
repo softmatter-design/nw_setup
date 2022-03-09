@@ -44,7 +44,11 @@ def makenewudf():
 					} "規則構造での条件を入力",
 				Random:{chains:select{"3_Chain", "4_Chain", "5_Chain", "6_Chain", "7_Chain"} "分岐の数と種類を選択",
 					Calc_Topolpgy:select{"Calc", "Read"} "ランダムネットワークの「計算を行うか、読み込むか」を選択",
-						Calc:{pre_sampling:int "プレサンプリング数", pre_try:int "プレサンプリング時の再トライ数", sampling:int "サンプリング数", try:int "サンプリング時の再トライ数", n_parallel:int "並行計算のCPU数"} "ランダムサーチ計算する場合の条件を設定",
+						Calc:{pre_sampling:int "プレサンプリング数", 
+						sampling:int "サンプリング数", 
+						try:int "サンプリング時の再トライ数", 
+						repeat:int "探索計算の繰り返し数"
+						n_parallel:int "並行計算のCPU数"} "ランダムサーチ計算する場合の条件を設定",
 						Read:{dir_name:string} "過去の計算結果のディレクトリを記入",
 					N_histgram:int "ヒストグラムの分割数"
 					} "ランダム構造での条件を入力"
@@ -93,7 +97,7 @@ def makenewudf():
 	\\begin{data}
 		CalcCond:{"cognac112",1}
 TargetCond:{
-	{"Regular", {"4_Chain"}{"4_Chain","Read",{100,100,100,100,1}{"4_chains_3_cells_100_trials_100_sampling"}100}}
+	{"Regular", {"4_Chain"}{"4_Chain","Read",{1000,100,100,10,1}{"4_chains_3_cells_100_trials_100_sampling"}100}}
 	{20, 0, 3}
 	{"Set", {1}{0.85}}
 	{"No", {"Density", {0.85}{1.0}}}

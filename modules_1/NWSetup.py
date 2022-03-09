@@ -479,14 +479,14 @@ class SelectSet:
 		self.init_dic = self.base_top_list[0]
 		self.n_jp = self.base_top_list[3]
 		#
-		self.pre_sampling = self.cond_top[0]
-		self.pre_try = self.cond_top[1] 
-		self.n_sampling = self.cond_top[2]
-		self.n_try = self.cond_top[3]
+		self.pre_sampling = self.cond_top[0] 
+		self.n_sampling = self.cond_top[1]
+		self.n_try = self.cond_top[2]
+		self.repeat = self.cond_top[3]
 		self.f_pool = self.cond_top[4]
 		#
 		random_dir = str(self.n_strand) +"_chains_" + str(self.n_cell) + "_cells_"
-		random_dir += str(self.n_try) + "_trials_" + str(self.n_sampling) + "_sampling"
+		random_dir += str(self.n_sampling) + "_sampling_" + str(self.n_try) + "_trials_" + str(self.repeat) + "_times"
 		if os.path.isdir(random_dir):
 			print("#####\nRandom Calculation target dir exists!!\n")
 			while True:
@@ -517,67 +517,42 @@ class SelectSet:
 	def strand_exchange(self):
 		tmp_list = []
 		p = Pool(self.f_pool)
-		#
-		args = [[self.random_reduce(), i] for i in range(self.pre_sampling)] 
-		result = p.map(self.search_second, args)
+		# "self.random_reduce()" により任意のストランドを除去したものをサンプリング
+		print("Searching for Initial Random Structure of ", self.pre_sampling)
+		print("Please Wait a little bit!")
+		args = [[self.random_reduce(), i, "Pre"] for i in range(self.pre_sampling)] 
+		result = p.map(self.search, args)
 		for data in result:
 			tmp_list.extend(data)
 		print("##################################################")
 		print("Pre_Search Result:", len(tmp_list))
 		print("##################################################")
 		#
-		for i in range(10):
-			args = [[random.choice(tmp_list)[0], i] for i in range(self.n_sampling)] 
-			result = p.map(self.search_second, args)
+		for repeat in range(self.repeat):
+			# tmp_list を alg_const の昇順に並べ替えて、その分布に応じてサンプリング
+			tmp_array = np.array(tmp_list)
+			sortbyalg = tmp_array[np.argsort(tmp_array[:,1])]
+			args = []
+			step = int(len(sortbyalg)/self.n_sampling)
+			for i in range(self.n_sampling):
+				args.append([list(sortbyalg[i*step])[0], i, str(repeat + 1)+"/"+str(self.repeat)])
+			# 
+			result = p.map(self.search, args)
 			tmp_list = []
 			for data in result:
 				tmp_list.extend(data)
 			print("##################################################")
-			print("Search Result:", len(tmp_list))
+			print(str(repeat)+"/"+str(self.repeat), "Search Result:", len(tmp_list))
 			print("##################################################")
 
 		return tmp_list
 
 	########################################################
 	# ストランドの繋ぎ変えを行う
-	def pre_search(self, args):
-		dic, x = args
+	def search(self, args):
+		dic, x, id = args
 		alg_const = self.calc_lap_mat(dic)
-		print("pre_sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
-		#
-		result = []
-		count = 0
-		failed = 0
-		show = 5
-		while count < self.pre_try:
-			# 現状のストランドのリストの中からランダムに一つ選択し、"selected_strand"とする。
-			selected_strand = random.choice(list(dic.keys()))
-			# 繋ぎ変え得るストランドのリストを現状のネットワークと比較して、交換可能なセットを見つける。
-			tmp_dic, alg_const = self.find_pair(selected_strand, dic)
-			if alg_const != 0:
-				count += 1
-				result.append([tmp_dic, alg_const])
-				failed = 0
-				if count != 0 and round(show*count/self.pre_try) == show*count//self.pre_try and round(show*count/self.pre_try) == -(-show*count//self.pre_try):
-					print("pre_sampling ID =", x, "count = ", count)
-			else:
-				failed +=1
-			if failed >= self.pre_try:
-				print("##########################################")
-				print("pre_sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
-				print("##########################################")
-				count = self.pre_try
-				failed = 0
-		# 
-		return result
-
-
-	########################################################
-	# ストランドの繋ぎ変えを行う
-	def search_second(self, args):
-		dic, x = args
-		alg_const = self.calc_lap_mat(dic)
-		print("Sampling ID =", x,  "Initial Algebratic Conectivity =", alg_const)
+		print(id, "Sampling ID =", x,  "Initial Algebratic Connectivity =", alg_const)
 		#
 		result = []
 		count = 0
@@ -593,12 +568,12 @@ class SelectSet:
 				result.append([tmp_dic, alg_const])
 				failed = 0
 				if count != 0 and round(show*count/self.n_try) == show*count//self.n_try and round(show*count/self.n_try) == -(-show*count//self.n_try):
-					print("Sampling ID =", x, "count = ", count)
+					print(id, "Sampling ID =", x, "count = ", count)
 			else:
 				failed +=1
 			if failed >= self.n_try:
 				print("##########################################")
-				print("Sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
+				print(id, "Sampling ID =", x,  " FAILED!! with ", failed, "th trials.")
 				print("##########################################")
 				count = self.n_try
 				failed = 0
@@ -608,9 +583,8 @@ class SelectSet:
 	#########################################################
 	# 任意のストランドを選択し、所望の分岐数にストランドを消去
 	def random_reduce(self):
-		alg_const_init = self.calc_lap_mat(self.init_dic)
-		flag = 1
-		while flag == 1:
+		alg_const = 0
+		while alg_const <= 0:
 			tmp_dic = copy.deepcopy(self.init_dic)
 			del_bond = []
 			# 消去対象のストランドをリストアップ
@@ -623,9 +597,6 @@ class SelectSet:
 			for target in del_bond:
 				tmp_dic.pop(target)
 			alg_const = self.calc_lap_mat(tmp_dic)
-			#
-			if alg_const_init > alg_const:
-				flag = 0
 		return tmp_dic
 
 	################################################################
@@ -662,6 +633,8 @@ class SelectSet:
 					alg_const = self.calc_lap_mat(dic)
 					return dic, alg_const
 				else:
+					alg_const = 0
+			else:
 					alg_const = 0
 		return dic, alg_const
 
