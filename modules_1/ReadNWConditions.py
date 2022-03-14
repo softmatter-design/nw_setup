@@ -266,7 +266,7 @@ class ReadCondSetup:
 		elif self.n_segments <= 20:
 			self.c_n = 1.65
 		elif self.n_segments <= 40:
-			self.self.c_n = 1.7
+			self.c_n = 1.7
 		else:
 			self.c_n = 1.75
 		#########################################################################################
